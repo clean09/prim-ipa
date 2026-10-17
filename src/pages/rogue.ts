@@ -1,11 +1,11 @@
-// Seite „PRIMFALL“: das Roguelike im Vollbild (ohne Kopf- und Tab-Leiste).
+// Seite „STERNENFALL“: das Weltraum-Roguelike im Vollbild (ohne Kopf- und Tab-Leiste).
 import { go, immersive, setBusy } from '../core/nav';
 import { h } from '../ui/dom';
 import { Game } from '../rogue/game';
-import '../rogue/rogue.css';
+import '../rogue/sternenfall.css';
 
 export function mountRogue(root: HTMLElement) {
-  const stage = h('div', { class: 'stage rg-stage' });
+  const stage = h('div', { class: 'stage sf-stage' });
   root.append(stage);
   immersive(true);
   setBusy(false);

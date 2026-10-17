@@ -1,117 +1,147 @@
-// Meta-Fortschritt über alle Läufe: Sternenstaub (Dauerwährung), Talente, Klassen, Kartenpakete, Härtegrade,
-// Erfolge, Tagesziele, Verlauf. Gespeichert dauerhaft über saveData('rogue') (nativ: Capacitor Preferences).
+// Meta-Fortschritt über alle Läufe: Sternenstaub, Forschungsbaum, Geschichte (Kapitel), Kodex, Erfolge, Tagesziele,
+// Wochen-Expedition, Verlauf. Dauerhaft gespeichert über saveData('rogue') (nativ: Capacitor Preferences).
 import { L } from '../core/i18n';
 import { loadData, saveData } from '../core/store';
 import { todayKey } from '../core/leaderboard';
-import { ClassId, Run } from './types';
+import { Run } from './types';
 import { hashSeed, step } from './rng';
+import { RESEARCH, RNODE, SHIPS } from './data/ships';
+import { CHAPTERS } from './data/story';
 
-export interface RunRecord { date: string; cls: ClassId; won: boolean; act: number; floor: number; score: number; staub: number; seed: string; asc: number; killedBy?: string; maxCombo: number; maxHit: number }
+export interface RunRecord { date: string; ship: string; won: boolean; act: number; floor: number; score: number; staub: number; seed: string; asc: number; killedBy?: string; jackpots: number; maxHit: number; weekly?: boolean }
 export interface Meta {
   staub: number; totalStaub: number;
-  classes: ClassId[]; packs: string[]; talents: Record<string, number>;
-  ascMax: number; runs: number; wins: number; bestScore: number; bestFloor: number;
+  research: Record<string, number>;
+  ascMax: number; runs: number; wins: number; finalWins: number; bestScore: number; bestFloor: number;
   history: RunRecord[]; achievements: string[];
   daily: { date: string; goals: { id: string; p: number; done: boolean }[]; runDone?: boolean };
+  weekly: { week: string; best: number };
   totals: Record<string, number>;
+  chapters: string[]; unread: string[];
+  codex: { foes: string[]; syms: string[]; mods: string[] };
+  visited: string[]; bossKills: string[];
   tutorial: boolean;
 }
 
 const DEF: Meta = {
-  staub: 0, totalStaub: 0, classes: ['sieber'], packs: [], talents: {}, ascMax: 0, runs: 0, wins: 0, bestScore: 0, bestFloor: 0,
-  history: [], achievements: [], daily: { date: '', goals: [] }, totals: {}, tutorial: false,
+  staub: 0, totalStaub: 0, research: {}, ascMax: 0, runs: 0, wins: 0, finalWins: 0, bestScore: 0, bestFloor: 0,
+  history: [], achievements: [], daily: { date: '', goals: [] }, weekly: { week: '', best: 0 }, totals: {},
+  chapters: [], unread: [], codex: { foes: [], syms: [], mods: [] }, visited: [], bossKills: [], tutorial: false,
 };
 
 let cache: Meta | null = null;
 export function meta(): Meta {
-  if (!cache) cache = { ...DEF, ...loadData<Partial<Meta>>('rogue', {}) } as Meta;
+  if (!cache) { const d = loadData<Partial<Meta>>('sternenfall', {}); cache = { ...DEF, ...d, codex: { ...DEF.codex, ...(d.codex ?? {}) } } as Meta; }
   refreshDaily(cache);
   return cache;
 }
-export function saveMeta() { if (cache) saveData('rogue', cache); }
+export function saveMeta() { if (cache) saveData('sternenfall', cache); }
 
-// ------------------------------------------------------------------------------------------- Talente (datengetrieben)
-export interface TalentDef { id: string; name: [string, string]; text: (lv: number) => [string, string]; max: number; cost: (lv: number) => number; icon: string }
-export const TALENTS: TalentDef[] = [
-  { id: 'vital', icon: '❤️', name: ['Vitalität', 'Vitality'], max: 5, cost: lv => 40 + lv * 30, text: lv => [`+${6 * lv} max. LP zu Laufbeginn`, `+${6 * lv} max HP at run start`] },
-  { id: 'reich', icon: '🪙', name: ['Erbschaft', 'Inheritance'], max: 4, cost: lv => 35 + lv * 30, text: lv => [`+${25 * lv} Startgold`, `+${25 * lv} starting gold`] },
-  { id: 'glueck', icon: '🍀', name: ['Glück', 'Luck'], max: 4, cost: lv => 60 + lv * 40, text: lv => [`+${3 * lv} % seltene Karten, Proben +${2 * lv} %`, `+${3 * lv} % rare cards, checks +${2 * lv} %`] },
-  { id: 'reroll', icon: '🔁', name: ['Zweite Chance', 'Second Chance'], max: 3, cost: lv => 50 + lv * 50, text: lv => [`${lv} kostenlose Rerolls je Lauf`, `${lv} free rerolls per run`] },
-  { id: 'relikt', icon: '🏺', name: ['Fundstück', 'Heirloom'], max: 1, cost: () => 150, text: () => ['Start mit einem zufälligen gewöhnlichen Relikt', 'Start with a random common relic'] },
-  { id: 'schlank', icon: '✂️', name: ['Schlankes Deck', 'Lean Deck'], max: 1, cost: () => 90, text: () => ['Start ohne einen „Schnitt“', 'Start without one “Slash”'] },
-  { id: 'staub', icon: '✨', name: ['Sternensammler', 'Star Collector'], max: 5, cost: lv => 80 + lv * 60, text: lv => [`+${10 * lv} % Sternenstaub`, `+${10 * lv} % stardust`] },
-  { id: 'heiler', icon: '⛺', name: ['Lagerfeuer', 'Campfire'], max: 2, cost: lv => 70 + lv * 60, text: lv => [`Rasten heilt +${10 * lv} %`, `Resting heals +${10 * lv} %`] },
-];
-export const talent = (id: string) => meta().talents[id] ?? 0;
-
-export const CLASS_COST: Record<ClassId, number> = { sieber: 0, modula: 250, wuerfel: 400 };
-
-export function buy(cost: number, apply: (m: Meta) => void) {
-  const m = meta();
-  if (m.staub < cost) return false;
-  m.staub -= cost; apply(m); saveMeta();
+// ------------------------------------------------------------------------------------------- Forschung
+export const has = (id: string) => (meta().research[id] ?? 0) > 0;
+export const level = (id: string) => meta().research[id] ?? 0;
+export function canResearch(id: string) {
+  const n = RNODE[id]; if (!n) return false;
+  const lv = level(id);
+  return lv < n.max && (n.needs ?? []).every(has);
+}
+export function research(id: string) {
+  const n = RNODE[id], m = meta(), lv = level(id);
+  if (!canResearch(id) || m.staub < n.cost(lv)) return false;
+  m.staub -= n.cost(lv); m.research[id] = lv + 1; saveMeta();
   return true;
 }
+export const shipUnlocked = (id: string) => { const s = SHIPS.find(x => x.id === id); return !!s && (!s.unlock || has(s.unlock)); };
+export const packUnlocked = (p?: string) => !p || has(p) || (p === 's-rand' && meta().wins > 0);
 
-/** Nächstes erschwingliches Ziel (für „nur noch X bis …“). */
+/** Nächstes Forschungsziel (für „nur noch X bis …“). */
 export function nextGoal(): { label: string; cost: number } | null {
   const m = meta();
-  const opts: { label: string; cost: number }[] = [];
-  for (const [c, cost] of Object.entries(CLASS_COST)) if (!m.classes.includes(c as ClassId) && cost) opts.push({ label: L(`Klasse ${c === 'modula' ? 'Modula' : 'Würfelkönig'}`, `Class ${c === 'modula' ? 'Modula' : 'Dice King'}`), cost });
-  for (const t of TALENTS) { const lv = m.talents[t.id] ?? 0; if (lv < t.max) opts.push({ label: `${L(t.name[0], t.name[1])} ${lv + 1}`, cost: t.cost(lv) }); }
+  const opts = RESEARCH.filter(n => canResearch(n.id)).map(n => ({ label: `${L(n.name[0], n.name[1])}${n.max > 1 ? ` ${level(n.id) + 1}` : ''}`, cost: n.cost(level(n.id)) }));
   opts.sort((a, b) => a.cost - b.cost);
   return opts.find(o => o.cost > m.staub) ?? opts[0] ?? null;
+}
+export function researchProgress() {
+  const total = RESEARCH.reduce((s, n) => s + n.max, 0);
+  const done = RESEARCH.reduce((s, n) => s + Math.min(n.max, level(n.id)), 0);
+  return { done, total };
+}
+
+// ------------------------------------------------------------------------------------------- Geschichte
+const chapterListeners = new Set<(id: string) => void>();
+export function onChapter(f: (id: string) => void) { chapterListeners.add(f); return () => chapterListeners.delete(f); }
+/** Auslöser melden (start, visit:<sektor>, boss:<sektor>, win, final, runs:<n>) → neue Kapitel. */
+export function story(trigger: string) {
+  const m = meta();
+  for (const c of CHAPTERS) {
+    if (m.chapters.includes(c.id)) continue;
+    let ok = c.unlock === trigger;
+    if (c.unlock.startsWith('runs:')) ok = m.runs >= Number(c.unlock.slice(5));
+    if (ok) { m.chapters.push(c.id); m.unread.push(c.id); chapterListeners.forEach(f => f(c.id)); }
+  }
+  saveMeta();
+}
+export function discover(kind: 'foes' | 'syms' | 'mods', id: string) {
+  const m = meta();
+  if (!m.codex[kind].includes(id)) { m.codex[kind].push(id); saveMeta(); }
 }
 
 // ------------------------------------------------------------------------------------------- Erfolge
 export interface AchDef { id: string; icon: string; name: [string, string]; text: [string, string]; staub: number }
+const A = (id: string, icon: string, de: string, en: string, tde: string, ten: string, staub: number): AchDef => ({ id, icon, name: [de, en], text: [tde, ten], staub });
 export const ACHIEVEMENTS: AchDef[] = [
-  { id: 'first', icon: '🚀', name: ['Erster Fall', 'First Fall'], text: ['Einen Lauf beenden', 'Finish a run'], staub: 10 },
-  { id: 'boss1', icon: '÷', name: ['Teilerbezwinger', 'Divisor Slayer'], text: ['Den Großen Teiler besiegen', 'Defeat the Great Divisor'], staub: 30 },
-  { id: 'boss2', icon: '🐛', name: ['Wurmfänger', 'Worm Catcher'], text: ['Den Mersenne-Wurm besiegen', 'Defeat the Mersenne Worm'], staub: 50 },
-  { id: 'win', icon: '🏆', name: ['Riemann gelöst', 'Riemann Solved'], text: ['Die Riemann-Hydra besiegen', 'Defeat the Riemann Hydra'], staub: 100 },
-  { id: 'combo5', icon: '🔥', name: ['Primkette', 'Prime Chain'], text: ['Kombo 5 in einem Zug', 'Combo 5 in one turn'], staub: 20 },
-  { id: 'combo8', icon: '☄️', name: ['Primlawine', 'Prime Avalanche'], text: ['Kombo 8 in einem Zug', 'Combo 8 in one turn'], staub: 60 },
-  { id: 'hit100', icon: '💥', name: ['Hundert!', 'Hundred!'], text: ['100 Schaden mit einem Treffer', '100 damage in one hit'], staub: 40 },
-  { id: 'jackpot', icon: '🎰', name: ['Jackpot!', 'Jackpot!'], text: ['Den Jackpot am Automaten knacken', 'Hit the slot jackpot'], staub: 50 },
-  { id: 'rich', icon: '💰', name: ['Dagobert', 'Scrooge'], text: ['500 Gold gleichzeitig besitzen', 'Hold 500 gold at once'], staub: 30 },
-  { id: 'cursed3', icon: '☠️', name: ['Fluchsammler', 'Curse Collector'], text: ['3 verfluchte Relikte in einem Lauf', '3 cursed relics in one run'], staub: 40 },
-  { id: 'deck35', icon: '🗂️', name: ['Kartenhai', 'Card Shark'], text: ['35 Karten im Deck', '35 cards in your deck'], staub: 20 },
-  { id: 'lean', icon: '✂️', name: ['Minimalist', 'Minimalist'], text: ['Akt 2 mit höchstens 8 Karten erreichen', 'Reach act 2 with at most 8 cards'], staub: 40 },
-  { id: 'modula', icon: '🧪', name: ['Alchemie', 'Alchemy'], text: ['Mit Modula einen Boss besiegen', 'Defeat a boss as Modula'], staub: 30 },
-  { id: 'wuerfel', icon: '🎲', name: ['Glücksritter', 'Fortune’s Knight'], text: ['Mit dem Würfelkönig einen Boss besiegen', 'Defeat a boss as the Dice King'], staub: 30 },
-  { id: 'asc3', icon: '⛰️', name: ['Härte III', 'Hardship III'], text: ['Auf Härte 3 gewinnen', 'Win on Hardship 3'], staub: 150 },
-  { id: 'daily', icon: '📅', name: ['Tagesheld', 'Daily Hero'], text: ['Alle 3 Tagesziele an einem Tag', 'All 3 daily goals in a day'], staub: 25 },
+  A('first', '🚀', 'Erster Sprung', 'First Jump', 'Einen Lauf beenden', 'Finish a run', 10),
+  A('jackpot1', '🎰', 'Drei in einer Reihe', 'Three in a Row', 'Ersten Jackpot am Reaktor', 'First reactor jackpot', 15),
+  A('synergy20', '🌀', 'Resonanz', 'Resonance', '20 Synergien in einem Lauf', '20 synergies in one run', 30),
+  A('hit80', '💥', 'Sternenbrecher', 'Star Breaker', '80 Schaden mit einem Treffer', '80 damage in one hit', 40),
+  A('boss1', '👑', 'Erster Boss', 'First Boss', 'Einen Boss der Stufe 1 besiegen', 'Defeat a tier-1 boss', 25),
+  A('boss2', '🌸', 'Lilienbrecher', 'Lily Breaker', 'Einen Boss der Stufe 2 besiegen', 'Defeat a tier-2 boss', 40),
+  A('boss3', '🕳️', 'Horizontläufer', 'Horizon Runner', 'Einen Boss der Stufe 3 besiegen', 'Defeat a tier-3 boss', 60),
+  A('win', '✨', 'Licht für die Sterne', 'Light for the Stars', 'Den Kern erreichen und siegen', 'Reach the Core and win', 120),
+  A('final', '🌌', 'Am Rand', 'At the Edge', 'Den Architekten besiegen', 'Defeat the Architect', 250),
+  A('overheat0', '❄️', 'Kühler Kopf', 'Cool Head', 'Einen Boss ohne Überladung besiegen', 'Beat a boss without overloading', 30),
+  A('overheat3', '🔥', 'Glühende Leidenschaft', 'Burning Passion', '3 Überladungen in einem Kampf überleben', 'Survive 3 overloads in one combat', 25),
+  A('slotjackpot', '💰', 'Ewiger Orbit', 'Eternal Orbit', 'Den Casino-Jackpot knacken', 'Hit the casino jackpot', 50),
+  A('rich', '🪙', 'Ozzos Albtraum', 'Ozzo’s Nightmare', '400 Gold gleichzeitig besitzen', 'Hold 400 gold at once', 30),
+  A('cursed3', '☠️', 'Verfluchte Ladung', 'Cursed Cargo', '3 verfluchte Module in einem Lauf', '3 cursed modules in one run', 40),
+  A('reels30', '🗂️', 'Volle Walzen', 'Full Reels', '30 Symbole auf den Walzen', '30 symbols on your reels', 25),
+  A('lean', '✂️', 'Schlanker Reaktor', 'Lean Reactor', 'Akt 2 mit höchstens 13 Symbolen erreichen', 'Reach act 2 with at most 13 symbols', 40),
+  A('ship-astrolab', '🔭', 'Messingträume', 'Brass Dreams', 'Mit dem Astrolab einen Boss besiegen', 'Defeat a boss with the Astrolabe', 30),
+  A('ship-nachtfalter', '🦋', 'Nachtflug', 'Night Flight', 'Mit dem Nachtfalter einen Boss besiegen', 'Defeat a boss with the Night Moth', 30),
+  A('ship-amboss', '⚒️', 'Schmiedefeuer', 'Forge Fire', 'Mit dem Sonnenamboss einen Boss besiegen', 'Defeat a boss with the Sun Anvil', 30),
+  A('ship-spirale', '🌀', 'Durch das Wurmloch', 'Through the Wormhole', 'Mit der Spirale einen Boss besiegen', 'Defeat a boss with the Spiral', 30),
+  A('asc3', '⛰️', 'Gefahrenstufe III', 'Danger III', 'Auf Gefahrenstufe 3 gewinnen', 'Win on danger level 3', 150),
+  A('asc6', '🗻', 'Gefahrenstufe VI', 'Danger VI', 'Auf Gefahrenstufe 6 gewinnen', 'Win on danger level 6', 300),
+  A('daily', '📅', 'Tagesheld', 'Daily Hero', 'Alle 3 Tagesziele an einem Tag', 'All 3 daily goals in one day', 25),
+  A('weekly', '🗓️', 'Expedition', 'Expedition', 'Die Wochen-Expedition gewinnen', 'Win the weekly expedition', 80),
+  A('codex50', '📖', 'Xenobiologin', 'Xenobiologist', '50 % des Kodex entdeckt', 'Discover 50 % of the codex', 60),
+  A('runs50', '⏳', 'Unermüdlich', 'Relentless', '50 Läufe', '50 runs', 100),
 ];
-
-/** Erfolg freischalten – gibt die Definition zurück, wenn er neu ist (für die Einblendung). */
+const achListeners = new Set<(a: AchDef) => void>();
+export function onAchievement(f: (a: AchDef) => void) { achListeners.add(f); return () => achListeners.delete(f); }
 export function unlock(id: string): AchDef | null {
   const m = meta();
   if (m.achievements.includes(id)) return null;
-  const a = ACHIEVEMENTS.find(x => x.id === id);
-  if (!a) return null;
+  const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return null;
   m.achievements.push(id); m.staub += a.staub; m.totalStaub += a.staub; saveMeta();
   achListeners.forEach(f => f(a));
   return a;
 }
-const achListeners = new Set<(a: AchDef) => void>();
-export function onAchievement(f: (a: AchDef) => void) { achListeners.add(f); return () => achListeners.delete(f); }
 
 // ------------------------------------------------------------------------------------------- Tagesziele
 export interface GoalDef { id: string; stat: string; n: number; text: [string, string]; staub: number }
 export const GOALS: GoalDef[] = [
-  { id: 'g-combo4', stat: 'maxCombo', n: 4, text: ['Erreiche Kombo 4', 'Reach combo 4'], staub: 20 },
-  { id: 'g-elite2', stat: 'elites', n: 2, text: ['Besiege 2 Elite-Gegner', 'Defeat 2 elites'], staub: 25 },
-  { id: 'g-casino', stat: 'casinoWon', n: 100, text: ['Gewinne 100 Gold im Casino', 'Win 100 gold in the casino'], staub: 25 },
-  { id: 'g-cards', stat: 'cards', n: 60, text: ['Spiele 60 Karten', 'Play 60 cards'], staub: 15 },
-  { id: 'g-act2', stat: 'act', n: 2, text: ['Erreiche Akt 2', 'Reach act 2'], staub: 20 },
+  { id: 'g-jack', stat: 'jackpots', n: 3, text: ['Lande 3 Jackpots', 'Land 3 jackpots'], staub: 25 },
+  { id: 'g-syn', stat: 'synergies', n: 12, text: ['Löse 12 Synergien aus', 'Trigger 12 synergies'], staub: 20 },
+  { id: 'g-elite', stat: 'elites', n: 2, text: ['Besiege 2 Elite-Gegner', 'Defeat 2 elites'], staub: 25 },
   { id: 'g-boss', stat: 'bosses', n: 1, text: ['Besiege einen Boss', 'Defeat a boss'], staub: 30 },
-  { id: 'g-primes', stat: 'primes', n: 40, text: ['Triff 40 Primzahlen', 'Hit 40 primes'], staub: 20 },
   { id: 'g-kills', stat: 'kills', n: 15, text: ['Besiege 15 Gegner', 'Defeat 15 enemies'], staub: 15 },
-  { id: 'g-hit', stat: 'maxHit', n: 40, text: ['Triff mit 40+ Schaden', 'Hit for 40+ damage'], staub: 20 },
-  { id: 'g-events', stat: 'checks', n: 3, text: ['Gewinne 3 Proben', 'Win 3 checks'], staub: 15 },
+  { id: 'g-hit', stat: 'maxHit', n: 35, text: ['Triff mit 35+ Schaden', 'Hit for 35+ damage'], staub: 20 },
+  { id: 'g-casino', stat: 'casinoWon', n: 80, text: ['Gewinne 80 Gold im Casino', 'Win 80 gold in the casino'], staub: 25 },
+  { id: 'g-act', stat: 'act', n: 2, text: ['Erreiche Akt 2', 'Reach act 2'], staub: 20 },
+  { id: 'g-checks', stat: 'checks', n: 3, text: ['Gewinne 3 Proben', 'Win 3 checks'], staub: 15 },
+  { id: 'g-overheat', stat: 'overheats', n: 2, text: ['Überlebe 2 Überladungen', 'Survive 2 overloads'], staub: 15 },
 ];
-
 function refreshDaily(m: Meta) {
   const day = todayKey();
   if (m.daily.date === day) return;
@@ -120,16 +150,14 @@ function refreshDaily(m: Meta) {
   while (ids.length < 3) { const [r, n] = step(s); s = n; const g = GOALS[Math.floor(r * GOALS.length)]; if (!ids.includes(g.id)) ids.push(g.id); }
   m.daily = { date: day, goals: ids.map(id => ({ id, p: 0, done: false })) };
 }
-
-/** Fortschritt melden (Statistik-Name, neuer Wert oder Zuwachs). max = Höchstwert statt Summe. */
+const goalListeners = new Set<(g: GoalDef) => void>();
+export function onGoal(f: (g: GoalDef) => void) { goalListeners.add(f); return () => goalListeners.delete(f); }
 export function track(stat: string, v: number, max = false) {
   const m = meta();
-  let changed = false;
   for (const g of m.daily.goals) {
     const d = GOALS.find(x => x.id === g.id);
     if (!d || d.stat !== stat || g.done) continue;
     g.p = max ? Math.max(g.p, v) : g.p + v;
-    changed = true;
     if (g.p >= d.n) {
       g.done = true; m.staub += d.staub; m.totalStaub += d.staub;
       goalListeners.forEach(f => f(d));
@@ -137,34 +165,44 @@ export function track(stat: string, v: number, max = false) {
     }
   }
   m.totals[stat] = max ? Math.max(m.totals[stat] ?? 0, v) : (m.totals[stat] ?? 0) + v;
-  if (changed) saveMeta();
 }
-const goalListeners = new Set<(g: GoalDef) => void>();
-export function onGoal(f: (g: GoalDef) => void) { goalListeners.add(f); return () => goalListeners.delete(f); }
+
+/** Kalenderwoche als Schlüssel (für die Wochen-Expedition). */
+export function weekKey(d = new Date()) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return `${t.getUTCFullYear()}-W${String(Math.ceil(((t.getTime() - y0.getTime()) / 864e5 + 1) / 7)).padStart(2, '0')}`;
+}
 
 // ------------------------------------------------------------------------------------------- Laufende
 export function scoreOf(r: Run, won: boolean) {
   const s = r.stats;
-  return Math.round(s.floors * 12 + s.kills * 6 + s.elites * 30 + s.bosses * 120 + r.gold / 4 + s.maxCombo * 15 + (won ? 600 : 0)) * (1 + r.ascension * 0.25);
+  return Math.round((s.floors * 12 + s.kills * 6 + s.elites * 30 + s.bosses * 120 + r.gold / 4 + s.jackpots * 10 + s.synergies * 2 + (won ? 600 : 0)) * (1 + r.ascension * 0.2));
 }
 
 export function finishRun(r: Run, won: boolean, killedBy?: string) {
   const m = meta();
-  const score = Math.round(scoreOf(r, won));
-  const staub = Math.round(Math.max(8, score / 6) * (1 + 0.1 * talent('staub')) * (r.daily ? 1.5 : 1));
+  const score = scoreOf(r, won);
+  let mult = (1 + 0.1 * level('t-staub')) * (r.daily ? 1.5 : 1) * (r.weekly ? 1.3 : 1);
+  if (r.weekly) mult *= 1 + r.mutators.length * 0.1;
+  const staub = Math.round(Math.max(10, score / 6) * mult);
   const prevBest = m.bestScore;
   m.staub += staub; m.totalStaub += staub; m.runs++;
-  if (won) { m.wins++; m.ascMax = Math.max(m.ascMax, Math.min(5, r.ascension + 1)); }
+  if (won) { m.wins++; m.ascMax = Math.max(m.ascMax, Math.min(10, r.ascension + 1)); }
   m.bestScore = Math.max(m.bestScore, score); m.bestFloor = Math.max(m.bestFloor, r.stats.floors);
-  m.history.unshift({ date: new Date().toISOString(), cls: r.cls, won, act: r.act, floor: r.floor, score, staub, seed: r.seed, asc: r.ascension, killedBy, maxCombo: r.stats.maxCombo, maxHit: r.stats.maxHit });
-  m.history = m.history.slice(0, 30);
+  if (r.weekly) m.weekly = { week: r.weekly, best: Math.max(m.weekly.week === r.weekly ? m.weekly.best : 0, score) };
+  m.history.unshift({ date: new Date().toISOString(), ship: r.ship, won, act: r.act, floor: r.floor, score, staub, seed: r.seed, asc: r.ascension, killedBy, jackpots: r.stats.jackpots, maxHit: r.stats.maxHit, weekly: !!r.weekly });
+  m.history = m.history.slice(0, 40);
   if (r.daily) m.daily.runDone = true;
   saveMeta();
-  saveData('rogueRun', null);
+  saveData('sternenfallRun', null);
   const ach: AchDef[] = [];
   const u = (id: string) => { const a = unlock(id); if (a) ach.push(a); };
   u('first');
-  if (won) u('win');
-  if (won && r.ascension >= 3) u('asc3');
+  if (won) { u('win'); if (r.ascension >= 3) u('asc3'); if (r.ascension >= 6) u('asc6'); if (r.weekly) u('weekly'); story('win'); }
+  if (r.stats.synergies >= 20) u('synergy20');
+  if (m.runs >= 50) u('runs50');
+  story(`runs:${m.runs}`);
   return { score, staub, newBest: score > prevBest, ach };
 }

@@ -59,7 +59,7 @@ export interface GameStats {
 
 export interface Checkpoint { nextStart: number; count: number; lastPrime: number; updated: string }
 
-export const VERSION = '4.0';
+export const VERSION = '4.1';
 
 const DEFAULTS: Settings = {
   language: 'auto', threads: Math.max(1, navigator.hardwareConcurrency || 4), segment: 4_000_000,
@@ -82,7 +82,7 @@ function put(key: string, value: string) {
 }
 
 export async function loadStore() {
-  for (const k of ['settings', 'scores', 'checkpoint', 'rogue', 'rogueRun']) {
+  for (const k of ['settings', 'scores', 'checkpoint', 'sternenfall', 'sternenfallRun']) {
     const v = await get('primsieb.' + k);
     if (v != null) cache.set('primsieb.' + k, v);
   }

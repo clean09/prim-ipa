@@ -1,144 +1,188 @@
-// Gegner, Elite-Gegner und Bosse. next() bestimmt die Absicht für den kommenden Zug (wird vorher angezeigt).
-// Neue Gegner: Eintrag hier + in ENCOUNTERS einer Begegnung zuordnen.
-import { EnemyDef, Intent } from '../types';
-import { isPrime } from '../rng';
+// Gegner, Elite, Bosse und der Endgegner von STERNENFALL, nach Sektoren geordnet. next() = Absicht des nächsten Zuges.
+// Aussehen: look.kind + seed (Generator in art.ts), Bosse mit eigenem Motiv (look.boss).
+import { EnemyDef, Intent, SectorDef } from '../types';
 
 const T = (de: string, en: string): [string, string] => [de, en];
 const atk = (n: number, times?: number): Intent => ({ k: 'atk', n, times });
-const block = (n: number): Intent => ({ k: 'block', n });
-const cyc = <X>(turn: number, a: X[]) => a[(turn - 1) % a.length];
+const blk = (n: number): Intent => ({ k: 'block', n });
+const cyc = <X>(t: number, a: X[]) => a[(t - 1) % a.length];
+const sp = (de: string, en: string, icon: string): Intent => ({ k: 'special', name: T(de, en), icon });
+const alive = (c: { foes: { id: string; dead: boolean }[] }, id: string) => c.foes.some(f => f.id === id && !f.dead);
 
 export const ENEMIES: EnemyDef[] = [
-  // ======================================================================================= Akt 1
-  { id: 'schleim', name: T('Bruchschleim', 'Fraction Slime'), glyph: '½', hue: 140, hp: [28, 32], tier: 'normal', act: 1,
-    passive: T('Teilt sich bei halben LP in zwei Hälften.', 'Splits into two halves at half HP.'),
-    next: (_e, t) => cyc(t, [atk(7), block(5), atk(5, 2)]),
-    onHurt: (e, c) => {
-      if (!e.dead && !e.mem.split && e.hp <= e.max / 2) {
-        e.mem.split = 1; const h = Math.max(4, Math.floor(e.hp / 2)); e.dead = true; e.hp = 0;
-        c.summon('halbschleim', h); c.summon('halbschleim', h); c.log(T('Der Schleim teilt sich!', 'The slime splits!'));
-      }
-    } },
-  { id: 'halbschleim', name: T('Halbschleim', 'Half Slime'), glyph: '¼', hue: 150, hp: [8, 10], tier: 'minion', act: 1,
-    next: (_e, t) => cyc(t, [atk(4), atk(3, 2)]) },
-  { id: 'kaefer', name: T('Nullkäfer', 'Zero Beetle'), glyph: '0', hue: 30, hp: [22, 26], tier: 'normal', act: 1,
-    next: (_e, t) => cyc(t, [block(9), atk(10), { k: 'atk', n: 5 }]) },
-  { id: 'wespe', name: T('Teilerwespe', 'Divisor Wasp'), glyph: '÷', hue: 50, hp: [17, 21], tier: 'normal', act: 1,
-    next: (_e, t) => cyc(t, [atk(3, 3), { k: 'debuff', weak: 1 }, atk(3, 3)]) },
-  { id: 'spinne', name: T('Restspinne', 'Residue Spider'), glyph: '%', hue: 280, hp: [24, 28], tier: 'normal', act: 1,
-    next: (_e, t) => cyc(t, [{ k: 'poison', n: 3 }, atk(7), atk(6)]) },
-  { id: 'kult', name: T('Kult der Eins', 'Cult of One'), glyph: '1', hue: 0, hp: [40, 44], tier: 'normal', act: 1,
-    passive: T('Wird jede Runde stärker.', 'Grows stronger every turn.'),
-    next: (_e, t) => (t === 1 ? { k: 'buff', str: 3 } : atk(5)) },
+  // ======================================================================================= 1 · Der Singende Gürtel
+  { id: 'steinmotte', name: T('Steinmotte', 'Stone Moth'), look: { kind: 'kreatur', seed: 11, hue: 30 }, hp: [22, 26], tier: 'normal',
+    next: (_e, t) => cyc(t, [atk(6), blk(5), atk(4, 2)]) },
+  { id: 'schuerfdroide', name: T('Schürfdroide K-7', 'Mining Droid K-7'), look: { kind: 'mech', seed: 12, hue: 40 }, hp: [24, 28], tier: 'normal',
+    passive: T('Wirft Schrott in deine Walzen.', 'Throws junk into your reels.'), next: (_e, t) => cyc(t, [{ k: 'junk', id: 'schrott' }, atk(8), atk(6)]) },
+  { id: 'felsenkrabbe', name: T('Felsenkrabbe', 'Rock Crab'), look: { kind: 'kreatur', seed: 13, hue: 20 }, hp: [30, 34], tier: 'normal',
+    next: (_e, t) => cyc(t, [blk(9), atk(11)]) },
+  { id: 'splitter', name: T('Splitterschwarm', 'Shard Swarm'), look: { kind: 'schwarm', seed: 14, hue: 35 }, hp: [16, 20], tier: 'normal',
+    next: (_e, t) => cyc(t, [atk(2, 4), atk(3, 3)]) },
+  { id: 'freibeuter', name: T('Gulmarr-Freibeuter', 'Gulmarr Freebooter'), look: { kind: 'jaeger', seed: 15, hue: 90 }, hp: [26, 30], tier: 'normal',
+    passive: T('Schneckenpirat: entert und stiehlt 10 Gold.', 'Slug pirate: boards you and steals 10 gold.'),
+    next: (_e, t) => cyc(t, [atk(7), sp('Entern', 'Board', '🪝'), atk(9)]), special: (_e, c) => { c.gainGold(-10); c.log(T('Der Freibeuter stiehlt 10 Gold!', 'The freebooter steals 10 gold!')); } },
+  { id: 'guertelwurm', name: T('Gürtelwurm', 'Belt Worm'), look: { kind: 'wurm', seed: 16, hue: 25 }, hp: [68, 74], tier: 'elite',
+    passive: T('Gräbt sich ein: jede 3. Runde 15 Schild.', 'Burrows: every 3rd turn 15 shield.'), next: (_e, t) => (t % 3 === 0 ? blk(15) : cyc(t, [atk(12), atk(5, 3)])) },
+  { id: 'rrekk', name: T('Korsarenkapitän Rrekk', 'Corsair Captain Rrekk'), look: { kind: 'jaeger', seed: 17, hue: 0 }, hp: [62, 68], tier: 'elite',
+    passive: T('Ruft Freibeuter zu Hilfe.', 'Calls freebooters for help.'), next: (_e, t) => cyc(t, [atk(10), { k: 'summon', id: 'freibeuter' }, atk(6, 2), { k: 'debuff', vuln: 2 }]) },
+  { id: 'koenigin', name: T('Die Steinerne Königin', 'The Stone Queen'), look: { kind: 'boss', seed: 18, hue: 30, boss: 'koenigin' }, hp: [140, 140], tier: 'boss',
+    passive: T('Halber Schaden, solange Felsbrocken sie schützen.', 'Half damage while boulders protect her.'),
+    onSpawn: (_e, c) => { c.summon('felsbrocken'); },
+    modTaken: (_e, d, c) => (alive(c, 'felsbrocken') ? Math.floor(d / 2) : d),
+    next: (_e, t) => cyc(t, [atk(12), { k: 'summon', id: 'felsbrocken' }, atk(6, 3), blk(14), { k: 'junk', id: 'schrott' }]) },
+  { id: 'felsbrocken', name: T('Singender Felsbrocken', 'Singing Boulder'), look: { kind: 'kristall', seed: 19, hue: 25 }, hp: [14, 16], tier: 'minion', next: () => atk(4) },
+  { id: 'mahlstrom', name: T('Kapitän Mahlstrom', 'Captain Maelstrom'), look: { kind: 'boss', seed: 20, hue: 200, boss: 'korsar' }, hp: [150, 150], tier: 'boss',
+    passive: T('Heizt deinen Reaktor auf und entert dich.', 'Heats your reactor and boards you.'),
+    next: (_e, t) => cyc(t, [atk(8, 2), { k: 'heat', n: 3 }, atk(16), sp('Entern', 'Board', '🪝'), { k: 'summon', id: 'freibeuter' }]),
+    special: (_e, c) => { c.gainGold(-20); c.fx('enemyHit', { n: 6, times: 2 }); c.log(T('Mahlstrom entert dein Schiff!', 'Maelstrom boards your ship!')); } },
 
-  { id: 'quadrierer', name: T('Der Quadrierer', 'The Squarer'), glyph: 'x²', hue: 200, hp: [72, 78], tier: 'elite', act: 1,
-    passive: T('Schlägt mit 2 + Zug² zu – schnell besiegen!', 'Hits for 2 + turn² – defeat it fast!'),
-    next: (_e, t) => (t % 3 === 0 ? block(12) : atk(Math.min(40, 2 + t * t))) },
-  { id: 'zwilling11', name: T('Zwilling 11', 'Twin 11'), glyph: '11', hue: 330, hp: [34, 36], tier: 'elite', act: 1,
-    passive: T('Stirbt ein Zwilling allein, holt der andere ihn zurück.', 'If one twin dies alone, the other revives it.'),
-    next: (_e, t) => cyc(t, [atk(8), atk(4, 2), block(8)]),
-    onTurnStart: (e, c) => revivePartner(e, c, 'zwilling13') },
-  { id: 'zwilling13', name: T('Zwilling 13', 'Twin 13'), glyph: '13', hue: 300, hp: [34, 36], tier: 'elite', act: 1,
-    passive: T('Stirbt ein Zwilling allein, holt der andere ihn zurück.', 'If one twin dies alone, the other revives it.'),
-    next: (_e, t) => cyc(t, [block(8), atk(9), { k: 'debuff', vuln: 1 }]),
-    onTurnStart: (e, c) => revivePartner(e, c, 'zwilling11') },
+  // ======================================================================================= 1b · Frostring von Boreal
+  { id: 'eislibelle', name: T('Eislibelle', 'Ice Dragonfly'), look: { kind: 'kreatur', seed: 31, hue: 195 }, hp: [18, 22], tier: 'normal', next: (_e, t) => cyc(t, [atk(3, 2), { k: 'debuff', weak: 1 }, atk(7)]) },
+  { id: 'frostqualle', name: T('Frostqualle', 'Frost Jelly'), look: { kind: 'qualle', seed: 32, hue: 190 }, hp: [24, 28], tier: 'normal',
+    passive: T('Lässt Walzen einfrieren (sie klemmen).', 'Freezes reels (they get stuck).'), next: (_e, t) => cyc(t, [{ k: 'debuff', jam: 1 }, atk(7), atk(5)]) },
+  { id: 'kristallspinne', name: T('Kristallspinne', 'Crystal Spider'), look: { kind: 'kristall', seed: 33, hue: 200 }, hp: [26, 30], tier: 'normal', next: (_e, t) => cyc(t, [blk(7), atk(6, 2)]) },
+  { id: 'gletscherauge', name: T('Gletscherauge', 'Glacier Eye'), look: { kind: 'auge', seed: 34, hue: 185 }, hp: [28, 32], tier: 'normal', next: (_e, t) => cyc(t, [{ k: 'debuff', vuln: 2 }, atk(10)]) },
+  { id: 'schneeschwarm', name: T('Schneeschwarm', 'Snow Swarm'), look: { kind: 'schwarm', seed: 35, hue: 205 }, hp: [16, 20], tier: 'normal', next: (_e, t) => cyc(t, [atk(2, 3), blk(6)]) },
+  { id: 'kristallkoloss', name: T('Kristallkoloss', 'Crystal Colossus'), look: { kind: 'kristall', seed: 36, hue: 210 }, hp: [80, 86], tier: 'elite',
+    passive: T('Splittert bei Treffern: 1 Schaden zurück.', 'Splinters on hit: 1 damage back.'), modTaken: (_e, d, c) => { if (d > 0) c.hurtSelf(1); return d; }, next: (_e, t) => cyc(t, [blk(12), atk(16), atk(7, 2)]) },
+  { id: 'eisseherin', name: T('Eisseherin Nym', 'Ice Seer Nym'), look: { kind: 'auge', seed: 37, hue: 220 }, hp: [60, 66], tier: 'elite',
+    next: (_e, t) => cyc(t, [{ k: 'debuff', jam: 1, weak: 1 }, atk(12), { k: 'summon', id: 'schneeschwarm' }, atk(8, 2)]) },
+  { id: 'boreas', name: T('Boreas, der Frostwyrm', 'Boreas the Frost Wyrm'), look: { kind: 'boss', seed: 38, hue: 195, boss: 'frostwyrm' }, hp: [150, 150], tier: 'boss',
+    passive: T('Unter halben LP: jeder Zug 10 Eispanzer.', 'Below half HP: 10 ice armour each turn.'),
+    onTurnStart: (e) => { if (e.hp < e.max / 2) e.block += 10; },
+    next: (_e, t) => cyc(t, [atk(14), { k: 'debuff', jam: 2 }, atk(5, 3), atk(20), blk(10)]) },
+  { id: 'kathedrale', name: T('Die Glaskathedrale', 'The Glass Cathedral'), look: { kind: 'boss', seed: 39, hue: 175, boss: 'kathedrale' }, hp: [160, 160], tier: 'boss',
+    passive: T('Wirft 20 % des Schadens zurück. Ruft Glasscherben.', 'Reflects 20 % of damage. Summons glass shards.'),
+    modTaken: (_e, d, c) => { const r = Math.floor(d * 0.2); if (r) c.hurtSelf(r); return d; },
+    next: (_e, t) => cyc(t, [{ k: 'summon', id: 'glasscherbe' }, atk(13), blk(15), atk(6, 2)]) },
+  { id: 'glasscherbe', name: T('Glasscherbe', 'Glass Shard'), look: { kind: 'kristall', seed: 40, hue: 170 }, hp: [10, 12], tier: 'minion', next: () => atk(5) },
 
-  { id: 'teiler', name: T('Der Große Teiler', 'The Great Divisor'), glyph: '÷', hue: 20, hp: [135, 135], tier: 'boss', act: 1,
-    passive: T('Karten mit NICHT-primer Zahl machen nur halben Schaden. Spaltet Reste ab.', 'Cards with a NON-prime number deal only half damage. Splits off remainders.'),
-    modTaken: (_e, d, c, card) => (card && !(c.fx('cardPrime', card)) ? Math.floor(d / 2) : d),
-    special: (_e, c) => { c.block = Math.floor(c.block / 2); c.log(T('Dein Block wird geteilt!', 'Your block is divided!')); c.fx('enemyHit', { n: 8, times: 2 }); },
-    next: (_e, t) => cyc(t, [atk(12), { k: 'special', name: T('Teilung', 'Division'), icon: '÷' }, { k: 'summon', id: 'rest' }, atk(7, 2), block(16)]) },
-  { id: 'rest', name: T('Rest', 'Remainder'), glyph: 'r', hue: 30, hp: [12, 14], tier: 'minion', act: 1,
-    next: () => atk(4) },
+  // ======================================================================================= 2 · Die Lilien von Orion
+  { id: 'nebelqualle', name: T('Nebelqualle', 'Nebula Jelly'), look: { kind: 'qualle', seed: 51, hue: 300 }, hp: [32, 36], tier: 'normal', next: (_e, t) => cyc(t, [{ k: 'rad', n: 3 }, atk(8)]) },
+  { id: 'gasmotte', name: T('Gasmotte', 'Gas Moth'), look: { kind: 'kreatur', seed: 52, hue: 280 }, hp: [30, 34], tier: 'normal', next: (_e, t) => cyc(t, [atk(9), { k: 'debuff', weak: 2 }]) },
+  { id: 'pfauenwaechter', name: T('Pfauenwächter', 'Peacock Warden'), look: { kind: 'kreatur', seed: 53, hue: 170 }, hp: [40, 44], tier: 'normal', next: (_e, t) => cyc(t, [blk(12), atk(13)]) },
+  { id: 'tsoon', name: T('Kapuzenhändler von Tsoon', 'Hooded Trader of Tsoon'), look: { kind: 'jaeger', seed: 54, hue: 320 }, hp: [34, 38], tier: 'normal',
+    passive: T('Tentakelbart: verkauft dir Falschgeld.', 'Tentacle-beard: sells you counterfeit coins.'), next: (_e, t) => cyc(t, [{ k: 'junk', id: 'falschgeld' }, atk(10), atk(4, 2)]) },
+  { id: 'sporenschwarm', name: T('Sporenschwarm', 'Spore Swarm'), look: { kind: 'schwarm', seed: 55, hue: 110 }, hp: [24, 28], tier: 'normal', next: (_e, t) => cyc(t, [{ k: 'rad', n: 2 }, atk(3, 3)]) },
+  { id: 'liliengarde', name: T('Liliengarde', 'Lily Guard'), look: { kind: 'mech', seed: 56, hue: 330 }, hp: [92, 98], tier: 'elite',
+    next: (_e, t) => cyc(t, [blk(16), atk(9, 2), atk(18), { k: 'debuff', vuln: 2 }]) },
+  { id: 'tentakelprior', name: T('Tentakelprior Hal’Mekk', 'Tentacle Prior Hal’Mekk'), look: { kind: 'qualle', seed: 57, hue: 260 }, hp: [86, 92], tier: 'elite',
+    passive: T('Heilt sich regelmäßig.', 'Heals regularly.'), next: (_e, t) => cyc(t, [{ k: 'rad', n: 4 }, atk(12), { k: 'heal', n: 12 }, atk(7, 2)]) },
+  { id: 'kaiserin', name: T('Die Nebelkaiserin', 'The Nebula Empress'), look: { kind: 'boss', seed: 58, hue: 300, boss: 'kaiserin' }, hp: [210, 210], tier: 'boss',
+    passive: T('Ihre Krone aus gefangenen Sternen: jede 3. Runde ein Sternfunke.', 'Her crown of captured stars: a star spark every 3rd turn.'),
+    next: (_e, t) => cyc(t, [{ k: 'rad', n: 4 }, atk(14), { k: 'summon', id: 'sternfunke' }, atk(7, 3), { k: 'debuff', weak: 2, vuln: 2 }]) },
+  { id: 'sternfunke', name: T('Gefangener Sternfunke', 'Captive Star Spark'), look: { kind: 'auge', seed: 59, hue: 50 }, hp: [16, 18], tier: 'minion', next: () => atk(6),
+    onDeath: (_e, c) => { c.heal(4); c.log(T('Der Funke ist frei – er dankt dir mit Licht (+4 Hülle).', 'The spark is free – it thanks you with light (+4 hull).')); } },
+  { id: 'orionjaeger', name: T('Orions Jäger', 'Orion’s Hunter'), look: { kind: 'boss', seed: 60, hue: 15, boss: 'orionjaeger' }, hp: [180, 180], tier: 'boss',
+    passive: T('Wird jede Runde stärker (+2).', 'Gets stronger every turn (+2).'), onTurnStart: e => { e.str += 2; },
+    next: (_e, t) => cyc(t, [atk(5, 3), { k: 'debuff', vuln: 2 }, atk(15), blk(18)]) },
 
-  // ======================================================================================= Akt 2
-  { id: 'waechter', name: T('Primwächter', 'Prime Warden'), glyph: 'P', hue: 190, hp: [36, 42], tier: 'normal', act: 2,
-    passive: T('Immun gegen Karten mit nicht-primer Zahl.', 'Immune to cards with a non-prime number.'),
-    modTaken: (_e, d, c, card) => (card && !c.fx('cardPrime', card) ? 0 : d),
-    next: (_e, t) => cyc(t, [atk(11), block(12), atk(6, 2)]) },
-  { id: 'golem', name: T('Wurzelgolem', 'Root Golem'), glyph: '√', hue: 25, hp: [58, 64], tier: 'normal', act: 2,
-    passive: T('Lädt auf und schlägt dann gewaltig zu.', 'Charges up, then hits hard.'),
-    next: (_e, t) => (t % 2 === 1 ? { k: 'special', name: T('Lädt auf', 'Charging'), icon: '⚡' } : atk(20)),
-    special: e => { e.block += 6; } },
-  { id: 'hexe', name: T('Modulo-Hexe', 'Modulo Witch'), glyph: 'mod', hue: 290, hp: [36, 40], tier: 'normal', act: 2,
-    next: (_e, t) => cyc(t, [{ k: 'curse', card: 'zweifel' }, atk(9), { k: 'debuff', vuln: 2 }, atk(7)]) },
-  { id: 'bestie', name: T('Fakultätsbestie', 'Factorial Beast'), glyph: 'n!', hue: 0, hp: [42, 48], tier: 'normal', act: 2,
-    passive: T('Schaden = Zug! (1, 2, 6, 24 …)', 'Damage = turn! (1, 2, 6, 24 …)'),
-    next: (_e, t) => atk([1, 2, 6, 24, 30][Math.min(4, t - 1)]) },
-  { id: 'spiegelzahl', name: T('Spiegelzahl', 'Mirror Number'), glyph: '⇄', hue: 210, hp: [40, 44], tier: 'normal', act: 2,
-    passive: T('Wirft 20 % des Schadens auf dich zurück.', 'Reflects 20 % of damage back at you.'),
-    modTaken: (_e, d, c) => { const r = Math.floor(d * 0.2); if (r > 0) c.hurtSelf(r); return d; },
-    next: (_e, t) => cyc(t, [block(10), atk(9)]) },
+  // ======================================================================================= 2b · Das Leuchtfeuer-Feld
+  { id: 'pulsarwespe', name: T('Pulsarwespe', 'Pulsar Wasp'), look: { kind: 'kreatur', seed: 71, hue: 55 }, hp: [26, 30], tier: 'normal', next: (_e, t) => cyc(t, [atk(4, 2), atk(4, 3)]) },
+  { id: 'magnetauge', name: T('Magnetauge', 'Magnet Eye'), look: { kind: 'auge', seed: 72, hue: 220 }, hp: [32, 36], tier: 'normal', passive: T('Heizt deinen Reaktor auf.', 'Heats your reactor.'), next: (_e, t) => cyc(t, [{ k: 'heat', n: 2 }, atk(9)]) },
+  { id: 'strahlenlibelle', name: T('Strahlenlibelle', 'Ray Dragonfly'), look: { kind: 'kreatur', seed: 73, hue: 80 }, hp: [28, 32], tier: 'normal', next: (_e, t) => cyc(t, [{ k: 'rad', n: 3 }, atk(5, 2)]) },
+  { id: 'neutronenmech', name: T('Neutronenmech', 'Neutron Mech'), look: { kind: 'mech', seed: 74, hue: 210 }, hp: [44, 48], tier: 'normal', next: (_e, t) => cyc(t, [blk(12), atk(14)]) },
+  { id: 'funkenschwarm', name: T('Funkenschwarm', 'Spark Swarm'), look: { kind: 'schwarm', seed: 75, hue: 45 }, hp: [22, 26], tier: 'normal', next: (_e, t) => cyc(t, [atk(2, 5), { k: 'heat', n: 1 }]) },
+  { id: 'leuchtturm', name: T('Leuchtturmwächter', 'Lighthouse Warden'), look: { kind: 'mech', seed: 76, hue: 40 }, hp: [96, 102], tier: 'elite',
+    next: (_e, t) => cyc(t, [{ k: 'debuff', weak: 2 }, atk(20), blk(14), atk(6, 3)]) },
+  { id: 'zwillingspulsar', name: T('Zwillingspulsar', 'Twin Pulsar'), look: { kind: 'auge', seed: 77, hue: 230 }, hp: [48, 52], tier: 'elite',
+    passive: T('Kommt zu zweit; stirbt einer, rast der andere (+5 Stärke).', 'Comes in pairs; if one dies, the other rages (+5 strength).'),
+    onDeath: (_e, c) => { const o = c.foes.find(f => f.id === 'zwillingspulsar' && !f.dead); if (o) { o.str += 5; c.log(T('Der Zwilling rast!', 'The twin rages!')); } },
+    next: (_e, t) => cyc(t, [atk(8), { k: 'heat', n: 2 }, atk(4, 3)]) },
+  { id: 'leuchtfeuer', name: T('Das Leuchtfeuer', 'The Beacon'), look: { kind: 'boss', seed: 78, hue: 45, boss: 'leuchtfeuer' }, hp: [215, 215], tier: 'boss',
+    passive: T('Kündigt seinen Lichtstrahl an (25 Schaden) – sammle vorher Schild!', 'Announces its light beam (25 damage) – build shields first!'),
+    next: (_e, t) => cyc(t, [{ k: 'debuff', weak: 2 }, atk(10), sp('Lichtstrahl lädt', 'Beam charging', '☀'), atk(25), atk(4, 4)]), special: e => { e.block += 12; } },
+  { id: 'magnetar', name: T('Magnetar-Bestie', 'Magnetar Beast'), look: { kind: 'boss', seed: 79, hue: 260, boss: 'magnetar' }, hp: [205, 205], tier: 'boss',
+    passive: T('Heizt jede Runde auf; ist dein Reaktor heiß (≥ 4), erleidet sie 50 % mehr.', 'Heats you every turn; if your reactor is hot (≥ 4), it takes 50 % more.'),
+    onTurnStart: (_e, c) => c.addHeat(1), modTaken: (_e, d, c) => (c.heat >= 4 ? Math.floor(d * 1.5) : d),
+    next: (_e, t) => cyc(t, [atk(12), { k: 'heat', n: 2 }, atk(6, 3), atk(18)]) },
 
-  { id: 'goldbach', name: T('Goldbach-Ritter', 'Goldbach Knight'), glyph: 'G', hue: 45, hp: [96, 104], tier: 'elite', act: 2,
-    passive: T('Jede gerade Runde: Block = Summe zweier Primzahlen.', 'Every even turn: block = sum of two primes.'),
-    next: (_e, t) => (t % 2 === 0 ? { k: 'block', n: 14 + 2 * t } : cyc(Math.ceil(t / 2), [atk(15), atk(8, 2), atk(20)])) },
-  { id: 'wurm', name: T('Mersenne-Wurm', 'Mersenne Worm'), glyph: 'M', hue: 150, hp: [185, 185], tier: 'boss', act: 2,
-    passive: T('Angriff 2^k − 1: verdoppelt sich jede Runde. Häutet sich einmal bei halben LP.', 'Attack 2^k − 1: doubles every turn. Sheds its skin once at half HP.'),
-    next: (_e, t) => (t % 4 === 0 ? block(25) : atk(Math.min(40, 2 ** (Math.ceil(t * 0.75) + 1) - 1))),
-    onHurt: (e, c) => { if (!e.dead && !e.mem.shed && e.hp <= e.max / 2) { e.mem.shed = 1; e.hp += 30; e.block += 15; c.log(T('Der Wurm häutet sich!', 'The worm sheds its skin!')); c.fx('shake', 2); } } },
+  // ======================================================================================= 3 · Ereignishorizont
+  { id: 'schattenmotte', name: T('Schattenmotte', 'Shadow Moth'), look: { kind: 'kreatur', seed: 91, hue: 270 }, hp: [40, 44], tier: 'normal', next: (_e, t) => cyc(t, [atk(11), { k: 'debuff', weak: 2 }]) },
+  { id: 'spaghettiwurm', name: T('Spaghettiwurm', 'Spaghetti Worm'), look: { kind: 'wurm', seed: 92, hue: 300 }, hp: [52, 56], tier: 'normal', next: (_e, t) => cyc(t, [atk(4, 4), blk(10)]) },
+  { id: 'horizontauge', name: T('Horizontauge', 'Horizon Eye'), look: { kind: 'auge', seed: 93, hue: 250 }, hp: [44, 48], tier: 'normal', next: (_e, t) => cyc(t, [{ k: 'junk', id: 'dunkelnebel' }, atk(13)]) },
+  { id: 'gravqualle', name: T('Gravitationsqualle', 'Gravity Jelly'), look: { kind: 'qualle', seed: 94, hue: 240 }, hp: [46, 50], tier: 'normal', next: (_e, t) => cyc(t, [{ k: 'debuff', jam: 1, vuln: 1 }, atk(12)]) },
+  { id: 'leerenjaeger', name: T('Leerenjägerin', 'Void Huntress'), look: { kind: 'jaeger', seed: 95, hue: 280 }, hp: [48, 52], tier: 'normal', next: (_e, t) => cyc(t, [atk(7, 2), atk(15)]) },
+  { id: 'akkretion', name: T('Akkretionsdrache', 'Accretion Dragon'), look: { kind: 'wurm', seed: 96, hue: 20 }, hp: [130, 140], tier: 'elite',
+    next: (_e, t) => cyc(t, [atk(18), blk(18), atk(8, 3), { k: 'heat', n: 3 }]) },
+  { id: 'zeitwaechter', name: T('Zeitwächter', 'Time Warden'), look: { kind: 'mech', seed: 97, hue: 45 }, hp: [120, 128], tier: 'elite',
+    passive: T('Erster Treffer jeder Runde prallt ab.', 'The first hit each turn bounces off.'),
+    modTaken: (e, d, c) => { if (e.mem.t !== c.turn) { e.mem.t = c.turn; c.log(T('Zeitschild!', 'Time shield!')); return 0; } return d; },
+    next: (_e, t) => cyc(t, [atk(18), { k: 'debuff', jam: 2 }, atk(9, 2)]) },
+  { id: 'gargantua', name: T('Gargantua', 'Gargantua'), look: { kind: 'boss', seed: 98, hue: 30, boss: 'gargantua' }, hp: [290, 290], tier: 'boss',
+    passive: T('Zieht Schrott in deine Walzen; seine Gezeiten halbieren deinen Schild.', 'Pulls junk into your reels; its tides halve your shield.'),
+    next: (_e, t) => cyc(t, [atk(16), { k: 'junk', id: 'dunkelnebel' }, sp('Gezeitenkraft', 'Tidal Force', '🌊'), atk(8, 3), { k: 'junk', id: 'leck' }, atk(28)]),
+    special: (_e, c) => { c.block = Math.floor(c.block / 2); c.fx('enemyHit', { n: 10 }); c.log(T('Die Gezeiten zerren an deinem Schild!', 'The tides tear at your shield!')); } },
+  { id: 'uhrmacher', name: T('Der Uhrmacher', 'The Clockmaker'), look: { kind: 'boss', seed: 99, hue: 45, boss: 'uhrmacher' }, hp: [280, 280], tier: 'boss',
+    passive: T('Jede 3. Runde: Zeitschleife – deine Walzen klemmen, er heilt 20.', 'Every 3rd turn: time loop – your reels jam, he heals 20.'),
+    next: (_e, t) => (t % 3 === 0 ? sp('Zeitschleife', 'Time Loop', '⏳') : cyc(t, [atk(14), atk(6, 3)])),
+    special: (e, c) => { c.jam += 2; e.hp = Math.min(e.max, e.hp + 20); c.log(T('Die Zeit läuft zurück …', 'Time runs backwards …')); } },
 
-  // ======================================================================================= Akt 3
-  { id: 'schlange', name: T('Unendlichkeitsschlange', 'Infinity Serpent'), glyph: '∞', hue: 260, hp: [68, 74], tier: 'normal', act: 3,
-    next: (_e, t) => cyc(t, [atk(6, 3), { k: 'buff', str: 2 }, atk(14)]) },
-  { id: 'paradox', name: T('Paradoxon', 'Paradox'), glyph: '?', hue: 320, hp: [58, 64], tier: 'normal', act: 3,
-    passive: T('Unberechenbar.', 'Unpredictable.'),
-    next: (e, t) => [atk(18), block(18), { k: 'debuff', weak: 2, vuln: 2 } as Intent, { k: 'curse', card: 'bruch' } as Intent][(e.uid * 7 + t * 3) % 4] },
-  { id: 'attraktor', name: T('Chaos-Attraktor', 'Chaos Attractor'), glyph: '☄', hue: 15, hp: [54, 60], tier: 'normal', act: 3,
-    next: (_e, t) => cyc(t, [{ k: 'summon', id: 'funke' }, atk(10), { k: 'poison', n: 4 }]) },
-  { id: 'funke', name: T('Funke', 'Spark'), glyph: '✦', hue: 40, hp: [10, 12], tier: 'minion', act: 3, next: () => atk(5) },
-  { id: 'tensor', name: T('Tensor', 'Tensor'), glyph: '⊗', hue: 180, hp: [78, 84], tier: 'normal', act: 3,
-    passive: T('+1 Stärke jede Runde.', '+1 Strength every turn.'),
-    onTurnStart: e => { e.str += 1; },
-    next: (_e, t) => cyc(t, [block(14), atk(12)]) },
+  // ======================================================================================= 3b · Galaktischer Kern
+  { id: 'sternenfresser', name: T('Sternenfresser', 'Star Eater'), look: { kind: 'kreatur', seed: 111, hue: 10 }, hp: [48, 52], tier: 'normal', next: (_e, t) => cyc(t, [atk(14), { k: 'heal', n: 8 }]) },
+  { id: 'kernkristall', name: T('Kernkristall', 'Core Crystal'), look: { kind: 'kristall', seed: 112, hue: 330 }, hp: [44, 48], tier: 'normal', next: (_e, t) => cyc(t, [blk(14), atk(10, 2)]) },
+  { id: 'quasarwaechter', name: T('Quasarwächter', 'Quasar Warden'), look: { kind: 'mech', seed: 113, hue: 230 }, hp: [52, 56], tier: 'normal', next: (_e, t) => cyc(t, [{ k: 'heat', n: 2 }, atk(15)]) },
+  { id: 'plasmaschwarm', name: T('Plasmaschwarm', 'Plasma Swarm'), look: { kind: 'schwarm', seed: 114, hue: 320 }, hp: [36, 40], tier: 'normal', next: (_e, t) => cyc(t, [atk(3, 5), { k: 'rad', n: 3 }]) },
+  { id: 'materiegolem', name: T('Dunkelmaterie-Golem', 'Dark Matter Golem'), look: { kind: 'mech', seed: 115, hue: 260 }, hp: [60, 66], tier: 'normal', next: (_e, t) => cyc(t, [blk(16), atk(18)]) },
+  { id: 'sternenschmied', name: T('Sternenschmied Vorn', 'Starsmith Vorn'), look: { kind: 'mech', seed: 116, hue: 25 }, hp: [140, 150], tier: 'elite',
+    passive: T('Vierarmiger Schmied: schlägt viermal zu.', 'Four-armed smith: strikes four times.'), next: (_e, t) => cyc(t, [atk(6, 4), blk(20), atk(24)]) },
+  { id: 'zwillingssonne', name: T('Zwillingssonne', 'Twin Sun'), look: { kind: 'auge', seed: 117, hue: 40 }, hp: [66, 70], tier: 'elite',
+    onDeath: (_e, c) => { const o = c.foes.find(f => f.id === 'zwillingssonne' && !f.dead); if (o) { o.str += 6; o.hp = Math.min(o.max, o.hp + 20); } },
+    next: (_e, t) => cyc(t, [atk(12), { k: 'rad', n: 3 }, atk(6, 2)]) },
+  { id: 'sagittarius', name: T('Sagittarius', 'Sagittarius'), look: { kind: 'boss', seed: 118, hue: 340, boss: 'sagittarius' }, hp: [300, 300], tier: 'boss',
+    passive: T('Das Herz der Galaxis: Angriffe steigen jede Runde (+3).', 'The heart of the galaxy: attacks rise every turn (+3).'),
+    onTurnStart: e => { e.str += 3; },
+    next: (_e, t) => cyc(t, [atk(12), { k: 'summon', id: 'plasmaschwarm' }, atk(6, 3), { k: 'heat', n: 3 }, blk(25)]) },
+  { id: 'sternenmutter', name: T('Die Sternenmutter', 'The Star Mother'), look: { kind: 'boss', seed: 119, hue: 50, boss: 'sternenmutter' }, hp: [310, 310], tier: 'boss',
+    passive: T('Gebiert Sternfunken und heilt sich.', 'Births star sparks and heals.'),
+    next: (_e, t) => cyc(t, [{ k: 'summon', id: 'sternfunke' }, atk(16), { k: 'heal', n: 25 }, atk(9, 2), { k: 'rad', n: 5 }]) },
 
-  { id: 'goedel', name: T('Gödels Wächter', 'Gödel’s Warden'), glyph: '⊢', hue: 240, hp: [140, 150], tier: 'elite', act: 3,
-    passive: T('Der erste Treffer jeder Runde ist unbeweisbar (0 Schaden).', 'The first hit each turn is unprovable (0 damage).'),
-    modTaken: (e, d, c) => { if (e.mem.lastTurn !== c.turn) { e.mem.lastTurn = c.turn; c.log(T('Unbeweisbar!', 'Unprovable!')); return 0; } return d; },
-    next: (_e, t) => cyc(t, [atk(20), atk(8, 3), { k: 'debuff', weak: 2 }]) },
-  { id: 'hydra', name: T('Riemann-Hydra', 'Riemann Hydra'), glyph: 'ζ', hue: 275, hp: [300, 300], tier: 'boss', act: 3,
-    passive: T('Halber Schaden, solange ein Kopf lebt. Köpfe wachsen nach – außer sie fallen durch einen Primzahl-Treffer.', 'Half damage while a head lives. Heads regrow – unless slain by a prime hit.'),
-    onSpawn: (_e, c) => { c.summon('kopf'); c.summon('kopf'); },
-    modTaken: (_e, d, c) => (c.foes.some(f => !f.dead && f.id === 'kopf') ? Math.floor(d / 2) : d),
-    onTurnStart: (e, c) => {
-      const alive = c.foes.filter(f => !f.dead && f.id === 'kopf').length;
-      if (alive < 2 && (e.mem.grow ?? 0) > 0) { e.mem.grow -= 1; if (e.mem.grow === 0) { c.summon('kopf'); c.log(T('Ein Kopf wächst nach!', 'A head regrows!')); } }
-    },
-    next: (_e, t) => cyc(t, [atk(15), atk(6, 4), block(22), { k: 'debuff', weak: 2, vuln: 2 }]) },
-  { id: 'kopf', name: T('Hydrakopf', 'Hydra Head'), glyph: 'ζ₀', hue: 290, hp: [38, 42], tier: 'minion', act: 3,
-    next: (_e, t) => cyc(t, [atk(8), atk(4, 2)]),
-    onDeath: (_e, c) => {
-      const body = c.foes.find(f => f.id === 'hydra' && !f.dead);
-      if (body && !c.primeNow) { body.mem.grow = 2; c.log(T('Kein Primzahl-Treffer – der Kopf wird nachwachsen.', 'No prime hit – the head will regrow.')); }
-    } },
+  // ======================================================================================= 4 · Der Rand – Endgegner
+  { id: 'architekt', name: T('Der Architekt', 'The Architect'), look: { kind: 'boss', seed: 131, hue: 260, boss: 'architekt' }, hp: [420, 420], tier: 'final',
+    passive: T('Unter halben LP: Spiegelphase – unverwundbar, solange Spiegelscherben leben.', 'Below half HP: mirror phase – invulnerable while mirror shards live.'),
+    onHurt: (e, c) => { if (!e.mem.phase && e.hp <= e.max / 2) { e.mem.phase = 1; c.summon('spiegel'); c.summon('spiegel'); c.log(T('„Sieh dich selbst, Kurierin.“', '“See yourself, courier.”')); c.fx('shake', 3); } },
+    modTaken: (_e, d, c) => (alive(c, 'spiegel') ? 0 : d),
+    next: (e, t) => (e.mem.phase ? cyc(t, [atk(10, 3), { k: 'heat', n: 3 }, atk(32), { k: 'junk', id: 'leck' }]) : cyc(t, [atk(18), { k: 'debuff', weak: 2, vuln: 2, jam: 1 }, atk(8, 3), blk(30), { k: 'rad', n: 5 }])) },
+  { id: 'spiegel', name: T('Spiegelscherbe', 'Mirror Shard'), look: { kind: 'kristall', seed: 132, hue: 260 }, hp: [36, 40], tier: 'minion', next: (_e, t) => cyc(t, [atk(8), blk(8)]) },
 ];
-
-function revivePartner(e: { dead: boolean; mem: Record<string, number> }, c: Parameters<NonNullable<EnemyDef['onTurnStart']>>[1], partner: string) {
-  const p = c.foes.find(f => f.id === partner);
-  if (p && p.dead && !e.dead && !(e.mem.revived > 0)) {
-    e.mem.revived = 1; p.dead = false; p.hp = Math.ceil(p.max / 2); c.log(T('Der Zwilling kehrt zurück!', 'The twin returns!')); c.fx('revive', p);
-  }
-}
 
 export const ENEMY: Record<string, EnemyDef> = Object.fromEntries(ENEMIES.map(e => [e.id, e]));
 
-/** Begegnungen je Akt: normale (früh/spät), Elite, Boss. */
-export const ENCOUNTERS: Record<number, { easy: string[][]; hard: string[][]; elite: string[][]; boss: string[] }> = {
-  1: {
-    easy: [['schleim'], ['kaefer', 'wespe'], ['spinne', 'wespe'], ['kult']],
-    hard: [['schleim', 'spinne'], ['kult', 'wespe'], ['kaefer', 'kaefer', 'wespe'], ['spinne', 'spinne']],
-    elite: [['quadrierer'], ['zwilling11', 'zwilling13']], boss: ['teiler'],
-  },
-  2: {
-    easy: [['waechter'], ['golem'], ['hexe', 'spiegelzahl']],
-    hard: [['bestie', 'hexe'], ['waechter', 'spiegelzahl'], ['golem', 'hexe'], ['waechter', 'hexe']],
-    elite: [['goldbach'], ['quadrierer', 'hexe']], boss: ['wurm'],
-  },
-  3: {
-    easy: [['schlange'], ['paradox', 'funke'], ['tensor']],
-    hard: [['attraktor', 'paradox'], ['schlange', 'tensor'], ['attraktor', 'schlange'], ['paradox', 'paradox']],
-    elite: [['goedel'], ['goldbach', 'tensor']], boss: ['hydra'],
-  },
-};
-
-export { isPrime };
+export const SECTORS: SectorDef[] = [
+  { id: 'guertel', tier: 1, name: T('Der Singende Gürtel', 'The Singing Belt'), text: T('Trümmer eines Planeten, der zu laut sang.', 'Debris of a planet that sang too loudly.'),
+    bg: ['#2a1d14', '#0c0a12'], theme: 'asteroiden',
+    easy: [['steinmotte'], ['splitter', 'splitter'], ['schuerfdroide'], ['felsenkrabbe']],
+    hard: [['freibeuter', 'steinmotte'], ['felsenkrabbe', 'splitter'], ['schuerfdroide', 'freibeuter'], ['steinmotte', 'steinmotte', 'splitter']],
+    elite: [['guertelwurm'], ['rrekk']], bosses: ['koenigin', 'mahlstrom'] },
+  { id: 'frost', tier: 1, pack: 's-frost', name: T('Frostring von Boreal', 'Frost Ring of Boreal'), text: T('Eis, das seit Äonen Sternenlicht speichert.', 'Ice that has stored starlight for aeons.'),
+    bg: ['#10263a', '#060a14'], theme: 'eis',
+    easy: [['eislibelle', 'eislibelle'], ['frostqualle'], ['kristallspinne'], ['schneeschwarm', 'eislibelle']],
+    hard: [['gletscherauge', 'eislibelle'], ['frostqualle', 'kristallspinne'], ['gletscherauge', 'schneeschwarm'], ['kristallspinne', 'kristallspinne']],
+    elite: [['kristallkoloss'], ['eisseherin']], bosses: ['boreas', 'kathedrale'] },
+  { id: 'orion', tier: 2, name: T('Die Lilien von Orion', 'The Lilies of Orion'), text: T('Gasschleier, in denen Sterne wie Blüten wachsen.', 'Gas veils where stars grow like blossoms.'),
+    bg: ['#2c1230', '#0c0614'], theme: 'nebel',
+    easy: [['nebelqualle'], ['gasmotte', 'sporenschwarm'], ['pfauenwaechter'], ['tsoon']],
+    hard: [['tsoon', 'gasmotte'], ['nebelqualle', 'sporenschwarm'], ['pfauenwaechter', 'gasmotte'], ['nebelqualle', 'tsoon']],
+    elite: [['liliengarde'], ['tentakelprior']], bosses: ['kaiserin', 'orionjaeger'] },
+  { id: 'pulsar', tier: 2, pack: 's-pulsar', name: T('Das Leuchtfeuer-Feld', 'The Beacon Field'), text: T('Pulsare blinken wie Leuchttürme einer toten Küste.', 'Pulsars blink like lighthouses of a dead coast.'),
+    bg: ['#121c36', '#05070f'], theme: 'pulsar',
+    easy: [['pulsarwespe'], ['magnetauge'], ['funkenschwarm', 'pulsarwespe'], ['strahlenlibelle']],
+    hard: [['neutronenmech', 'funkenschwarm'], ['magnetauge', 'strahlenlibelle'], ['neutronenmech', 'pulsarwespe'], ['strahlenlibelle', 'strahlenlibelle']],
+    elite: [['leuchtturm'], ['zwillingspulsar', 'zwillingspulsar']], bosses: ['leuchtfeuer', 'magnetar'] },
+  { id: 'horizont', tier: 3, name: T('Am Ereignishorizont', 'At the Event Horizon'), text: T('Hier biegt sich das Licht – und die Zeit.', 'Here light bends – and so does time.'),
+    bg: ['#1c1022', '#050307'], theme: 'horizont',
+    easy: [['schattenmotte'], ['spaghettiwurm'], ['horizontauge'], ['leerenjaeger']],
+    hard: [['gravqualle', 'schattenmotte'], ['leerenjaeger', 'horizontauge'], ['spaghettiwurm', 'gravqualle'], ['schattenmotte', 'leerenjaeger']],
+    elite: [['akkretion'], ['zeitwaechter']], bosses: ['gargantua', 'uhrmacher'] },
+  { id: 'kern', tier: 3, pack: 's-kern', name: T('Der Galaktische Kern', 'The Galactic Core'), text: T('Millionen Sonnen, dicht wie Pollen.', 'Millions of suns, dense as pollen.'),
+    bg: ['#331410', '#0c0404'], theme: 'kern',
+    easy: [['sternenfresser'], ['kernkristall'], ['quasarwaechter'], ['plasmaschwarm']],
+    hard: [['materiegolem', 'plasmaschwarm'], ['sternenfresser', 'kernkristall'], ['quasarwaechter', 'plasmaschwarm'], ['materiegolem', 'kernkristall']],
+    elite: [['sternenschmied'], ['zwillingssonne', 'zwillingssonne']], bosses: ['sagittarius', 'sternenmutter'] },
+  { id: 'rand', tier: 4, pack: 's-rand', name: T('Der Rand', 'The Edge'), text: T('Wo das Universum aufhört, wartet der Architekt.', 'Where the universe ends, the Architect waits.'),
+    bg: ['#0a0a14', '#000000'], theme: 'rand',
+    easy: [['spiegel'], ['schattenmotte', 'spiegel']], hard: [['leerenjaeger', 'spiegel'], ['materiegolem', 'spiegel']],
+    elite: [['zeitwaechter'], ['sternenschmied']], bosses: ['architekt'] },
+];
+export const SECTOR: Record<string, SectorDef> = Object.fromEntries(SECTORS.map(s => [s.id, s]));

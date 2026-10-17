@@ -1,193 +1,187 @@
-// Ein Lauf: Start, verzweigte Karte je Akt, Belohnungen (Seltenheit + Pity), Ereignis-Ergebnisse, Speichern/Laden.
+// Ein Lauf von STERNENFALL: Start (Schiff, Sektoren, Talente, Mutatoren), verzweigte Sternenkarte je Akt,
+// Angebote (Seltenheit + Pity), Ereignis-Ergebnisse, Speichern/Laden.
 import { loadData, saveData } from '../core/store';
-import { CARD, CARDS, STARTER } from './data/cards';
-import { RELIC, RELICS, START_RELIC } from './data/relics';
-import { meta, talent, track, unlock } from './meta';
-import { pick, rngOf, shuffle, weighted } from './rng';
-import { CardInst, ClassId, MapNode, NodeKind, Outcome, Rarity, Run, RunCtx } from './types';
+import { SYM, SYMBOLS } from './data/symbols';
+import { MOD, MODULES } from './data/modules';
+import { SECTORS } from './data/enemies';
+import { SHIP } from './data/ships';
+import { level, packUnlocked, track, unlock } from './meta';
+import { hashSeed, pick, rngOf, shuffle, weighted } from './rng';
+import { MapNode, NodeKind, Outcome, Rarity, Run, RunCtx, SymInst } from './types';
 
-export const ROWS = 11;            // 0 … 9 normale Stationen, 10 = Boss
+export const ROWS = 11;
 export const COLS = 4;
+export const REEL_MAX = 9;
 
-export function newRun(cls: ClassId, seed: string, asc = 0, daily?: string): Run {
+export function newRun(ship: string, seed: string, asc = 0, o: { daily?: string; weekly?: string; mutators?: string[] } = {}): Run {
+  const sh = SHIP[ship] ?? SHIP.kreuzer;
   const run: Run = {
-    seed, cls, act: 1, floor: 0, hp: 72, maxHp: 72, gold: 99, deck: [], relics: [], map: [], at: -1, rng: hashSeedNum(seed), uid: 1,
-    rerolls: 0, removes: 0, pityRare: 0, pityCasino: 0, luck: 0,
-    stats: { kills: 0, elites: 0, bosses: 0, dmg: 0, maxHit: 0, maxCombo: 0, goldWon: 0, jackpots: 0, cards: 0, floors: 0 },
-    ascension: asc, daily, energyBonus: 0, drawBonus: 0, mods: {}, startedAt: Date.now(),
+    seed, ship: sh.id, act: 1, floor: 0, sectors: [], hp: sh.hp, maxHp: sh.hp, gold: sh.gold, reels: [[], [], []], modules: [],
+    map: [], at: -1, rng: hashSeed(seed), uid: 1, rerolls: 0, removes: 0, pityRare: 0, pityCasino: 0, luck: 0,
+    stats: { kills: 0, elites: 0, bosses: 0, dmg: 0, maxHit: 0, jackpots: 0, synergies: 0, spins: 0, floors: 0, overheats: 0, slotJackpots: 0, goldWon: 0 },
+    ascension: asc, daily: o.daily, weekly: o.weekly, mutators: o.mutators ?? [], heatBonus: sh.heatMax - 6, spinBonus: sh.spins - 3, mods: {}, startedAt: Date.now(),
   };
-  if (cls === 'modula') { run.hp = run.maxHp = 66; }
-  if (cls === 'wuerfel') { run.hp = run.maxHp = 68; run.gold = 140; }
+  // Sektoren: je Stufe einer der freigeschalteten; nach dem ersten Sieg zusätzlich „Der Rand“
+  const r = rngOf(run);
+  for (const tier of [1, 2, 3] as const) run.sectors.push(pick(r, SECTORS.filter(s => s.tier === tier && packUnlocked(s.pack))).id);
+  if (packUnlocked('s-rand')) run.sectors.push('rand');
   // Talente
-  run.maxHp += 6 * talent('vital'); run.hp = run.maxHp;
-  run.gold += 25 * talent('reich');
-  run.mods.freeRerolls = talent('reroll');
-  run.luck = 0.02 * talent('glueck');
-  const deck = [...STARTER[cls]];
-  if (talent('schlank')) deck.splice(deck.indexOf('schnitt'), deck.indexOf('schnitt') >= 0 ? 1 : 0);
+  run.maxHp += 6 * level('t-huelle'); run.hp = run.maxHp;
+  run.gold += 25 * level('t-gold');
+  run.mods.freeRerolls = level('t-reroll');
+  run.luck = 0.02 * level('t-glueck');
+  run.heatBonus += level('t-hitze');
+  if (level('t-drehung')) run.mods.firstSpin = 1;
+  run.mods.restBonus = 0.1 * level('t-rast');
+  // Mutatoren (Wochen-Expedition)
+  if (run.mutators.includes('heiss')) { run.heatBonus -= 1; run.spinBonus += 1; }
+  if (run.mutators.includes('glas')) { run.mods.taken = 0.5; run.mods.dmgMult = 1.5; }
+  if (run.mutators.includes('reich')) run.mods.goldMult = 2;
+  if (run.mutators.includes('bosse')) run.mods.bossHp = 0.3;
   const rc = runCtx(run);
-  for (const id of deck) rc.addCard(id);
-  addRelic(run, START_RELIC[cls]);
-  if (talent('relikt')) { const r = relicOffer(run, 1, 'common')[0]; if (r) addRelic(run, r); }
+  sh.reels.forEach((reel, i) => reel.forEach(id => rc.addSymbol(id, i)));
+  if (run.mutators.includes('schrott')) { rc.addSymbol('schrott', 0); rc.addSymbol('schrott', 1); rc.addSymbol('schrott', 2); }
+  addModule(run, sh.module);
+  if (level('t-modul')) { const m = moduleOffer(run, 1, 'common')[0]; if (m) addModule(run, m); }
   run.map = genMap(run);
   return run;
 }
 
-function hashSeedNum(s: string) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h || 1; }
-export const rnd = (run: Run) => rngOf(run)();
+export const sectorOf = (run: Run) => run.sectors[Math.min(run.act, run.sectors.length) - 1];
+export const lastAct = (run: Run) => run.sectors.length;
 
-// ------------------------------------------------------------------------------------------- Karte (Verzweigungen)
+// ------------------------------------------------------------------------------------------- Sternenkarte
 export function genMap(run: Run): MapNode[] {
   const r = rngOf(run);
-  const grid: (MapNode | null)[][] = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  const rows = run.act === 4 ? 6 : ROWS;
+  const grid: (MapNode | null)[][] = Array.from({ length: rows }, () => Array(COLS).fill(null));
   const nodes: MapNode[] = [];
   const get = (row: number, col: number) => {
     if (!grid[row][col]) { const n: MapNode = { id: nodes.length, row, col, kind: 'fight', next: [] }; grid[row][col] = n; nodes.push(n); }
     return grid[row][col]!;
   };
-  // 4 Pfade von unten nach oben; jeder Schritt geht gerade oder diagonal
   const starts = shuffle(r, [0, 1, 2, 3]).slice(0, 3).concat([Math.floor(r() * COLS)]);
   for (const s of starts) {
-    let col = s;
-    let prev = get(0, col);
-    for (let row = 1; row < ROWS - 1; row++) {
+    let col = s, prev = get(0, col);
+    for (let row = 1; row < rows - 1; row++) {
       col = Math.max(0, Math.min(COLS - 1, col + (Math.floor(r() * 3) - 1)));
       const n = get(row, col);
       if (!prev.next.includes(n.id)) prev.next.push(n.id);
       prev = n;
     }
   }
-  const boss: MapNode = { id: nodes.length, row: ROWS - 1, col: 1.5, kind: 'boss', next: [] };
+  const boss: MapNode = { id: nodes.length, row: rows - 1, col: 1.5, kind: 'boss', next: [] };
   nodes.push(boss);
-  for (const n of nodes) if (n.row === ROWS - 2) n.next = [boss.id];
-  // Stationstypen
+  for (const n of nodes) if (n.row === rows - 2) n.next = [boss.id];
+  const casinoW = run.mutators.includes('casino') ? 18 : 9;
   for (const n of nodes) {
     if (n.kind === 'boss') continue;
     if (n.row === 0) n.kind = 'fight';
-    else if (n.row === 5) n.kind = 'chest';
-    else if (n.row === ROWS - 2) n.kind = 'rest';
-    else n.kind = weighted<NodeKind>(r, [['fight', 44], ['event', 20], ['elite', n.row >= 3 ? 12 : 0], ['shop', n.row >= 2 ? 8 : 0], ['casino', n.row >= 2 ? 9 : 0], ['rest', n.row >= 4 && n.row !== ROWS - 3 ? 7 : 0]]);
+    else if (n.row === Math.floor(rows / 2)) n.kind = 'chest';
+    else if (n.row === rows - 2) n.kind = 'rest';
+    else n.kind = weighted<NodeKind>(r, [['fight', 42], ['event', 20], ['elite', n.row >= 3 ? 12 : 0], ['shop', n.row >= 2 ? 8 : 0], ['casino', n.row >= 2 ? casinoW : 0], ['rest', n.row >= 4 && n.row !== rows - 3 ? 7 : 0]]);
   }
-  // keine zwei gleichen Sonderstationen direkt hintereinander
-  for (const n of nodes) for (const k of n.next) { const m = nodes[k]; if (m.kind === n.kind && ['shop', 'casino', 'rest', 'elite'].includes(m.kind) && m.row < ROWS - 2) m.kind = 'fight'; }
+  for (const n of nodes) for (const k of n.next) { const m = nodes[k]; if (m.kind === n.kind && ['shop', 'casino', 'rest', 'elite'].includes(m.kind) && m.row < rows - 2) m.kind = 'fight'; }
   return nodes;
 }
+export const reachable = (run: Run): number[] => (run.at < 0 ? run.map.filter(n => n.row === 0).map(n => n.id) : run.map[run.at].next);
 
-export const reachable = (run: Run): number[] =>
-  run.at < 0 ? run.map.filter(n => n.row === 0).map(n => n.id) : run.map[run.at].next;
-
-// ------------------------------------------------------------------------------------------- Lauf-Kontext (außerhalb des Kampfes)
+// ------------------------------------------------------------------------------------------- Lauf-Kontext
+export const allSymbols = (run: Run) => run.reels.flat();
 export function runCtx(run: Run): RunCtx {
   return {
     run,
     gainGold(n: number) {
-      if (n > 0) for (const id of run.relics) { const f = RELIC[id]?.modGold; if (f) n = f(n); }
+      if (n > 0) { for (const id of run.modules) { const f = MOD[id]?.modGold; if (f) n = f(n); } n = Math.round(n * (run.mods.goldMult ?? 1)); }
       run.gold = Math.max(0, run.gold + n);
-      if (run.gold >= 500) unlock('rich');
+      if (run.gold >= 400) unlock('rich');
     },
     heal(n: number) { run.hp = Math.min(run.maxHp, run.hp + n); },
-    addCard(id: string, up = false) {
-      const d = CARD[id];
-      if (!d) return;
-      run.deck.push({ uid: run.uid++, id, up, val: d.val === 'rand' ? 5 : d.val });
-      if (run.deck.length >= 35) unlock('deck35');
+    addSymbol(id: string, reel?: number, lv = 1) {
+      if (!SYM[id]) return;
+      let r = reel ?? -1;
+      if (r < 0 || r > 2) { r = 0; for (let i = 1; i < 3; i++) if (run.reels[i].length < run.reels[r].length) r = i; }
+      if (run.reels[r].length >= REEL_MAX && SYM[id].tag !== 'fluch') return;
+      run.reels[r].push({ uid: run.uid++, id, lv });
+      if (allSymbols(run).length >= 30) unlock('reels30');
     },
     rnd: rngOf(run),
   };
 }
-
-export function addRelic(run: Run, id: string) {
-  const d = RELIC[id];
-  if (!d || run.relics.includes(id)) return;
-  run.relics.push(id);
+export function addModule(run: Run, id: string) {
+  const d = MOD[id];
+  if (!d || run.modules.includes(id)) return;
+  run.modules.push(id);
   d.onRunStart?.(runCtx(run));
-  if (run.relics.filter(x => RELIC[x]?.cursed).length >= 3) unlock('cursed3');
+  if (run.modules.filter(x => MOD[x]?.cursed).length >= 3) unlock('cursed3');
 }
+export function removeSymbol(run: Run, uid: number) { for (const r of run.reels) { const i = r.findIndex(s => s.uid === uid); if (i >= 0 && r.length > 2) { r.splice(i, 1); return true; } } return false; }
+export function findSymbol(run: Run, uid: number): SymInst | undefined { return allSymbols(run).find(s => s.uid === uid); }
 
 // ------------------------------------------------------------------------------------------- Angebote
-const RAR_COL: Record<Rarity, string> = { common: '#a3a8b3', rare: '#4cb3ff', epic: '#c07cff', legendary: '#ffc84a' };
-export const rarityColor = (r: string) => RAR_COL[r as Rarity] ?? '#ffc84a';
+const RAR_COL: Record<string, string> = { common: '#bfb39a', rare: '#7fb3b0', epic: '#b48fd0', legendary: '#e0b860', start: '#bfb39a', boss: '#e07a6a' };
+export const rarityColor = (r: string) => RAR_COL[r] ?? '#e0b860';
 
 function rollRarity(run: Run, boost = 0): Rarity {
   const r = rngOf(run);
   const p = run.pityRare + boost + run.luck * 100;
-  const leg = 0.8 + p / 12, epic = 5 + p / 3, rare = 28 + p;
+  const leg = 1 + p / 12, epic = 6 + p / 3, rare = 30 + p;
   const x = r() * 100;
   const out: Rarity = x < leg ? 'legendary' : x < leg + epic ? 'epic' : x < leg + epic + rare ? 'rare' : 'common';
-  // Pity: jedes „gewöhnlich“ macht die nächste Seltene wahrscheinlicher, Treffer setzt zurück
   run.pityRare = out === 'common' ? Math.min(40, run.pityRare + 3) : 0;
   return out;
 }
-
-export function cardPool(run: Run) {
-  const packs = meta().packs;
-  const unlocked = new Set(packs.flatMap(p => (p === 'p1' ? ['euklid', 'mersenne', 'gauss'] : p === 'p2' ? ['katalysator', 'restklasse', 'kronenzahl'] : ['jackpot', 'hausvorteil', 'doppelwette', 'riemann'])));
-  return CARDS.filter(c => (c.cls === 'any' || c.cls === run.cls) && c.type !== 'curse' && c.id !== 'schnitt' && c.id !== 'schild' && (!c.locked || unlocked.has(c.id)));
-}
-
-export function cardOffer(run: Run, n = 3, boost = 0): string[] {
-  const r = rngOf(run);
-  const pool = cardPool(run);
-  const out: string[] = [];
+export const symbolPool = () => SYMBOLS.filter(s => !s.noOffer && packUnlocked(s.pack));
+export function symbolOffer(run: Run, n = 3, boost = 0): string[] {
+  const r = rngOf(run), pool = symbolPool(), out: string[] = [];
   for (let i = 0; i < n; i++) {
     let rar = rollRarity(run, boost);
-    let cands = pool.filter(c => c.rarity === rar && !out.includes(c.id));
-    while (!cands.length && rar !== 'common') { rar = rar === 'legendary' ? 'epic' : rar === 'epic' ? 'rare' : 'common'; cands = pool.filter(c => c.rarity === rar && !out.includes(c.id)); }
-    if (!cands.length) cands = pool.filter(c => !out.includes(c.id));
-    out.push(pick(r, cands).id);
+    let c = pool.filter(s => s.rarity === rar && !out.includes(s.id));
+    while (!c.length && rar !== 'common') { rar = rar === 'legendary' ? 'epic' : rar === 'epic' ? 'rare' : 'common'; c = pool.filter(s => s.rarity === rar && !out.includes(s.id)); }
+    if (!c.length) c = pool.filter(s => !out.includes(s.id));
+    out.push(pick(r, c).id);
   }
   return out;
 }
-
-export function relicOffer(run: Run, n = 1, force?: Rarity | 'cursed', boost = 0): string[] {
+export function moduleOffer(run: Run, n = 1, force?: Rarity | 'cursed', boost = 0): string[] {
   const r = rngOf(run);
-  const pool = RELICS.filter(x => !run.relics.includes(x.id) && x.rarity !== 'start' && x.rarity !== 'boss' && !x.locked);
+  const pool = MODULES.filter(x => !run.modules.includes(x.id) && x.rarity !== 'start' && x.rarity !== 'boss' && packUnlocked(x.pack));
   const out: string[] = [];
   for (let i = 0; i < n; i++) {
-    let cands = force === 'cursed' ? pool.filter(x => x.cursed) : pool.filter(x => !x.cursed);
+    let c = force === 'cursed' ? pool.filter(x => x.cursed) : pool.filter(x => !x.cursed);
     const rar = force && force !== 'cursed' ? force : weighted<Rarity>(r, [['common', 50 - boost], ['rare', 33], ['epic', 13 + boost / 2], ['legendary', 4 + boost / 2]]);
-    if (force !== 'cursed') { const f = cands.filter(x => x.rarity === rar); if (f.length) cands = f; }
-    cands = cands.filter(x => !out.includes(x.id));
-    if (!cands.length) cands = pool.filter(x => !out.includes(x.id));
-    if (!cands.length) break;
-    out.push(pick(r, cands).id);
+    if (force !== 'cursed') { const f = c.filter(x => x.rarity === rar); if (f.length) c = f; }
+    c = c.filter(x => !out.includes(x.id));
+    if (!c.length) c = pool.filter(x => !out.includes(x.id));
+    if (!c.length) break;
+    out.push(pick(r, c).id);
   }
   return out;
 }
+export function rerollCost(run: Run) { if ((run.mods.freeRerolls ?? 0) > 0) return 0; return [15, 25, 40, 60, 90, 130][Math.min(5, run.rerolls)]; }
+export function payReroll(run: Run) { const c = rerollCost(run); if (run.gold < c) return false; if (c === 0) run.mods.freeRerolls -= 1; else { run.gold -= c; run.rerolls++; } return true; }
+const priceMult = (run: Run) => (run.mods.goldMult ? 2 : 1) * (1 - Math.min(0.15, 0.05 * Math.floor((loadData<{ runs?: number }>('sternenfall', {}).runs ?? 0) / 10)));
+export const symbolPrice = (run: Run, rar: Rarity, r: () => number) => Math.round(({ common: 45, rare: 75, epic: 125, legendary: 190 }[rar]) * (0.9 + r() * 0.25) * priceMult(run));
+export const modulePrice = (run: Run, rar: string, r: () => number) => Math.round((({ common: 140, rare: 200, epic: 280, legendary: 380 } as Record<string, number>)[rar] ?? 220) * (0.9 + r() * 0.2) * priceMult(run));
+export const removeCost = (run: Run) => Math.round((70 + 25 * run.removes) * priceMult(run));
+export const upgradeCost = (run: Run, lv: number) => Math.round((40 + lv * 30) * priceMult(run));
 
-/** Reroll-Kosten steigen: 15, 25, 40, 60 … (Talent: erste n gratis) */
-export function rerollCost(run: Run) {
-  if ((run.mods.freeRerolls ?? 0) > 0) return 0;
-  return [15, 25, 40, 60, 90, 130][Math.min(5, run.rerolls)];
-}
-export function payReroll(run: Run) {
-  const c = rerollCost(run);
-  if (run.gold < c) return false;
-  if (c === 0) run.mods.freeRerolls -= 1; else { run.gold -= c; run.rerolls++; }
-  return true;
-}
-
-export const cardPrice = (rar: Rarity, r: () => number) => Math.round(({ common: 50, rare: 80, epic: 130, legendary: 200 }[rar]) * (0.9 + r() * 0.25));
-export const relicPrice = (rar: string, r: () => number) => Math.round(({ common: 140, rare: 200, epic: 280, legendary: 380 } as Record<string, number>)[rar] * (0.9 + r() * 0.2) || 220);
-export const removeCost = (run: Run) => 75 + 25 * run.removes;
-
-// ------------------------------------------------------------------------------------------- Ergebnisse (Ereignisse, Truhen)
-/** Wendet Ergebnisse an und liefert lesbare Zeilen + ggf. Auswahl, die der Bildschirm noch abfragen muss. */
-export function applyOutcomes(run: Run, list: Outcome[]): { lines: string[]; pickCard?: string[]; remove?: boolean; upgrade?: boolean; fight?: 'normal' | 'elite' } {
+// ------------------------------------------------------------------------------------------- Ergebnisse (Ereignisse, Wracks)
+export function applyOutcomes(run: Run, list: Outcome[]): { lines: string[]; pickSymbol?: string[]; remove?: boolean; upgrade?: boolean; fight?: 'normal' | 'elite' } {
   const rc = runCtx(run);
   const lines: string[] = [];
   const res: ReturnType<typeof applyOutcomes> = { lines };
   for (const o of list) {
-    if (o.gold) { rc.gainGold(o.gold); lines.push(`${o.gold > 0 ? '+' : ''}${o.gold} 🪙`); if (o.gold > 0) run.stats.goldWon += o.gold; }
-    if (o.hp) { if (o.hp > 0) rc.heal(o.hp); else run.hp = Math.max(1, run.hp + o.hp); lines.push(`${o.hp > 0 ? '+' : ''}${o.hp} ❤`); }
-    if (o.maxHp) { run.maxHp = Math.max(10, run.maxHp + o.maxHp); run.hp = Math.min(run.maxHp, run.hp + Math.max(0, o.maxHp)); lines.push(`${o.maxHp > 0 ? '+' : ''}${o.maxHp} max ❤`); }
-    if (o.staub) { const m = meta(); m.staub += o.staub; m.totalStaub += o.staub; lines.push(`+${o.staub} ✨`); }
-    if (o.card) res.pickCard = o.card === 'random' ? cardOffer(run) : o.card === 'rare' ? cardOffer(run, 3, 30) : o.card === 'epic' ? cardOffer(run, 3, 70) : [o.card];
+    if (o.gold) { rc.gainGold(o.gold); lines.push(`${o.gold > 0 ? '+' : ''}${o.gold} ✦`); if (o.gold > 0) run.stats.goldWon += o.gold; }
+    if (o.hp) { if (o.hp > 0) rc.heal(o.hp); else run.hp = Math.max(1, run.hp + o.hp); lines.push(`${o.hp > 0 ? '+' : ''}${o.hp} ⛨`); }
+    if (o.maxHp) { run.maxHp = Math.max(10, run.maxHp + o.maxHp); run.hp = Math.min(run.maxHp, run.hp + Math.max(0, o.maxHp)); lines.push(`${o.maxHp > 0 ? '+' : ''}${o.maxHp} max ⛨`); }
+    if (o.staub) { const m = loadData<any>('sternenfall', {}); void m; lines.push(`+${o.staub} ✧`); run.mods.bonusStaub = (run.mods.bonusStaub ?? 0) + o.staub; }
+    if (o.card) res.pickSymbol = o.card === 'random' ? symbolOffer(run) : o.card === 'rare' ? symbolOffer(run, 3, 30) : o.card === 'epic' ? symbolOffer(run, 3, 70) : [o.card];
     if (o.relic) {
-      const id = RELIC[o.relic] ? o.relic : relicOffer(run, 1, o.relic as any)[0];
-      if (id) { addRelic(run, id); lines.push(`${RELIC[id].icon} ${RELIC[id].name[0]}`); }
+      const id = MOD[o.relic] ? o.relic : moduleOffer(run, 1, o.relic as any)[0];
+      if (id) { addModule(run, id); lines.push(`${MOD[id].icon} ${MOD[id].name[0]}`); }
     }
-    if (o.curse) { const id = typeof o.curse === 'string' ? o.curse : pick(rc.rnd, ['bruch', 'zweifel', 'nullteiler', 'gier']); rc.addCard(id); lines.push(`☠ ${CARD[id].name[0]}`); }
+    if (o.curse) { const id = typeof o.curse === 'string' && SYM[o.curse] ? o.curse : pick(rc.rnd, ['schrott', 'leck', 'parasit', 'dunkelnebel', 'falschgeld']); rc.addSymbol(id); lines.push(`☠ ${SYM[id].name[0]}`); }
     if (o.removeCard) res.remove = true;
     if (o.upgradeCard) res.upgrade = true;
     if (o.fight) res.fight = o.fight;
@@ -196,14 +190,11 @@ export function applyOutcomes(run: Run, list: Outcome[]): { lines: string[]; pic
 }
 
 // ------------------------------------------------------------------------------------------- Speichern
-export const saveRun = (run: Run | null) => saveData('rogueRun', run);
-export const loadRun = (): Run | null => loadData<Run | null>('rogueRun', null);
+export const saveRun = (run: Run | null) => saveData('sternenfallRun', run);
+export const loadRun = (): Run | null => { const r = loadData<Run | null>('sternenfallRun', null); return r && Array.isArray(r.reels) ? r : null; };
 
 export function enterAct(run: Run, act: number) {
   run.act = act; run.at = -1; run.map = genMap(run);
-  run.hp = Math.min(run.maxHp, run.hp + Math.round((run.maxHp - run.hp) * 0.6));   // Erholung zwischen den Akten
+  run.hp = Math.min(run.maxHp, run.hp + Math.round((run.maxHp - run.hp) * 0.5));
   track('act', act, true);
 }
-
-export const cardName = (c: CardInst) => CARD[c.id]?.name ?? ['?', '?'];
-export { CARD, RELIC };

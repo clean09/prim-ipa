@@ -128,7 +128,7 @@ export function mountHome(root: HTMLElement) {
   const slides: [string, string, string, string][] = [
     [L('Geräte-Check', 'Device check'), devBest ? N(devBest.points ?? 0) : '—', L('Punkte', 'points'), 'device'],
     [L('Primzahlen', 'Primes'), prime ? N(prime.points ?? 0) : '—', L('Punkte', 'points'), 'prime'],
-    ['PRIMFALL', rm.bestScore ? N(rm.bestScore) : '—', L(`Rekord · ${rm.wins} Siege`, `best · ${rm.wins} wins`), 'rogue'],
+    ['Sternenfall', rm.bestScore ? N(rm.bestScore) : '—', L(`Rekord · ${rm.wins} Siege`, `best · ${rm.wins} wins`), 'rogue'],
     [L('Singularität', 'Singularity'), bh ? N(bh.points ?? 0) : '—', L('Punkte', 'points'), 'bh'],
     [L('KI-Leistung', 'AI performance'), ai ? F(ai.score, 0) : '—', 'GFLOPS FP16', 'ai'],
   ];
