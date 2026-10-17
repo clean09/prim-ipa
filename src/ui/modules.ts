@@ -149,25 +149,48 @@ function displaySheet(dev: DeviceProfile) {
 }
 
 function fullscreen(tip: string) {
-  const el = h('div', { class: 'fs' });
+  const el = h('div', { class: 'fs', 'data-fs': '1' });
   const done = () => { el.remove(); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
-  el.append(h('button', { class: 'close', onclick: (e: Event) => { e.stopPropagation(); done(); } }, L('Fertig', 'Done')), h('div', { class: 'tip' }, tip));
+  (el as any).close = done;
+  const bar = h('div', { class: 'fs-bar' }, h('button', { class: 'fs-btn', onclick: (e: Event) => { e.stopPropagation(); done(); } }, L('✕ Fertig', '✕ Done')));
+  el.append(bar, h('div', { class: 'tip' }, tip));
+  // nach unten wischen beendet (iPhone hat keine Zurück-Taste)
+  let y0 = -1, x0 = 0;
+  el.addEventListener('touchstart', e => { if (e.touches.length === 1) { y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; } else y0 = -1; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (y0 < 0) return;
+    const dy = e.changedTouches[0].clientY - y0, dx = Math.abs(e.changedTouches[0].clientX - x0);
+    if (dy > 120 && dx < 80 && !el.dataset.paint) done();
+    y0 = -1;
+  }, { passive: true });
   document.body.append(el);
   el.requestFullscreen?.().catch(() => {});
-  return { el, done };
+  return { el, done, bar };
 }
 
 function pixelTest() {
   const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffffff', '#000000', '#808080', 'linear-gradient(90deg,#000,#fff)', 'linear-gradient(90deg,red,yellow,lime,cyan,blue,magenta,red)'];
-  const { el } = fullscreen(L('Tippen = nächste Farbe. Achte auf Punkte, die nicht mitwechseln.', 'Tap = next colour. Look for dots that do not change.'));
+  const names = [L('Rot', 'Red'), L('Grün', 'Green'), L('Blau', 'Blue'), L('Weiß', 'White'), L('Schwarz', 'Black'), L('Grau', 'Grey'), L('Verlauf', 'Gradient'), L('Spektrum', 'Spectrum')];
+  const { el, bar } = fullscreen(L('Rechts tippen = weiter · links = zurück · nach unten wischen = beenden', 'Tap right = next · left = back · swipe down = exit'));
   let i = 0;
-  const show = () => { el.style.background = colors[i % colors.length]; };
+  const label = h('span', { class: 'fs-lbl' });
+  const prev = h('button', { class: 'fs-btn', onclick: (e: Event) => { e.stopPropagation(); step(-1); } }, '‹');
+  const next = h('button', { class: 'fs-btn', onclick: (e: Event) => { e.stopPropagation(); step(1); } }, '›');
+  bar.prepend(prev, label, next);
+  const show = () => { el.style.background = colors[i]; label.textContent = `${i + 1}/${colors.length} · ${names[i]}`; };
+  const step = (d: number) => { i = (i + d + colors.length) % colors.length; show(); sfx.tap(); };
   show();
-  el.addEventListener('click', () => { i++; show(); sfx.tap(); });
+  el.addEventListener('click', e => step(e.clientX < innerWidth / 2 ? -1 : 1));
+  // Bedienleiste nach 2,5 s ausblenden (sonst verdeckt sie Pixel), bei Berührung wieder zeigen
+  let hideT = 0;
+  const wake = () => { bar.classList.remove('dim'); clearTimeout(hideT); hideT = window.setTimeout(() => bar.classList.add('dim'), 2500); };
+  el.addEventListener('pointerdown', wake);
+  wake();
 }
 
 function touchTest() {
   const { el } = fullscreen(L('Mal mit dem Finger alle Kästchen an – bleibt eins dunkel, reagiert die Stelle nicht.', 'Paint every square with your finger – a square that stays dark means that spot does not respond.'));
+  el.dataset.paint = '1';
   const c = h('canvas', { style: { position: 'absolute', inset: '0', width: '100%', height: '100%' } });
   el.prepend(c);
   const [g, w, hh] = fitCanvas(c);

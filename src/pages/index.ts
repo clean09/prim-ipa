@@ -13,6 +13,7 @@ import { mountMore } from './more';
 import { mountPrime } from './prime';
 import { mountRam } from './ram';
 import { mountStar } from './star';
+import { mountRogue } from './rogue';
 
 export interface Page {
   id: string;
@@ -35,6 +36,7 @@ const list: Page[] = [
   { id: 'star', title: () => L('Sternenleben', 'Star life'), kicker: S, full: true, help: 'star', keys: 'stern star sonne supernova nebel hr', mount: mountStar },
   { id: 'games', title: () => L('Spiele', 'Games'), kicker: () => L('Spielen', 'Play'), keys: 'spiel game jagd blitz pi', mount: mountGames },
   { id: 'play', title: () => L('Spiel', 'Game'), parent: 'games', full: true, mount: mountPlay },
+  { id: 'rogue', title: () => 'PRIMFALL', parent: 'games', full: true, keys: 'roguelike primfall karten deck casino', mount: mountRogue },
   { id: 'device', title: () => L('Geräte-Check', 'Device check'), kicker: Y, keys: 'gerät handy akku kamera sensor', mount: mountDevice },
   { id: 'more', title: () => L('Alles', 'Everything'), kicker: () => L('Register', 'Index'), mount: mountMore },
   { id: 'prime', title: () => L('Primzahlen', 'Primes'), kicker: B, parent: 'more', help: 'prime', keys: 'prim sieb cpu kerne', mount: mountPrime },

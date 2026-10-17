@@ -30,7 +30,22 @@ export function maskTitle(text: string, cls = 'mtitle') {
     const s = document.createElement('span'); s.textContent = w; s.style.setProperty('--d', `${i * 70}ms`);
     m.append(s); el.append(m, ' ');
   });
+  fitText(el);
   return el;
+}
+
+/** Großen Titel so weit verkleinern, dass das längste Wort in die Breite passt (lange deutsche Wörter auf 320 px). */
+export function fitText(el: HTMLElement, min = 26) {
+  const fit = () => {
+    if (!el.isConnected) return;
+    el.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    const w = el.clientWidth;
+    let guard = 0;
+    while (guard++ < 40 && size > min && [...el.querySelectorAll<HTMLElement>('.mw')].some(m => m.scrollWidth > w + 1)) { size -= 2; el.style.fontSize = `${size}px`; }
+  };
+  setTimeout(fit, 0); setTimeout(fit, 250);
+  window.addEventListener('resize', fit, { passive: true });
 }
 
 let io: IntersectionObserver | null = null;
@@ -107,4 +122,51 @@ export function intro(): Promise<void> {
     };
     requestAnimationFrame(f);
   });
+}
+
+
+/** Vorhang-Übergang zwischen Hauptbereichen: Fläche fährt hoch, zeigt den Zielnamen groß, gibt die Seite frei. */
+export function curtain(label: string, no: string): Promise<void> {
+  if (motionLevel() !== 'full') return Promise.resolve();
+  const el = document.createElement('div');
+  el.className = 'curtain';
+  const s = document.createElement('small'); s.textContent = no;
+  const b = document.createElement('b'); b.textContent = label;
+  el.append(s, b);
+  document.body.append(el);
+  return new Promise(res => {
+    setTimeout(res, 330);                               // Seite wechselt, solange der Vorhang deckt
+    setTimeout(() => el.classList.add('out'), 420);
+    setTimeout(() => el.remove(), 1000);
+  });
+}
+
+/** 3D-Neigung beim Berühren (Karten folgen dem Finger leicht). */
+export function tilt(el: HTMLElement, max = 7) {
+  if (motionLevel() === 'off') return;
+  const move = (e: PointerEvent) => {
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+    el.style.transform = `perspective(700px) rotateX(${(-y * max).toFixed(2)}deg) rotateY(${(x * max).toFixed(2)}deg) scale(.985)`;
+    el.style.setProperty('--gx', `${(x + 0.5) * 100}%`); el.style.setProperty('--gy', `${(y + 0.5) * 100}%`);
+  };
+  const reset = () => { el.style.transform = ''; };
+  el.classList.add('tilt');
+  el.addEventListener('pointerdown', move);
+  el.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') move(e); });
+  el.addEventListener('pointerup', reset); el.addEventListener('pointerleave', reset); el.addEventListener('pointercancel', reset);
+}
+
+/** Großer Titel Buchstabe für Buchstabe (Startseite). */
+export function charTitle(text: string, cls: string) {
+  const el = document.createElement('h1');
+  el.className = cls;
+  let i = 0;
+  text.split(' ').forEach(w => {
+    const m = document.createElement('span'); m.className = 'mw';
+    for (const ch of w) { const s = document.createElement('span'); s.textContent = ch; s.style.setProperty('--d', `${i++ * 45}ms`); m.append(s); }
+    el.append(m, ' ');
+  });
+  fitText(el);
+  return el;
 }

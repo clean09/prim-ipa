@@ -12,7 +12,8 @@ import { XRay } from '../ui/xray';
 import { rankFor } from '../ui/fx';
 import { icon } from '../ui/icons';
 import { SpaceKind, spaceStyle } from '../ui/cosmos';
-import { maskTitle, countUp, spotlight } from '../ui/motion';
+import { charTitle, countUp, spotlight } from '../ui/motion';
+import { meta as rogueMeta } from '../rogue/meta';
 import { StellarModel } from '../star/model';
 import { StarView } from '../star/render';
 import { reducedMotion } from '../core/theme';
@@ -54,7 +55,7 @@ export function mountHome(root: HTMLElement) {
 
   // ---------------------------------------------------------------- Titel
   const date = new Date().toLocaleDateString(L('de-DE', 'en-GB'), { day: '2-digit', month: 'short', year: 'numeric' });
-  const title = maskTitle('Prim Sieb .', 'h-title');
+  const title = charTitle('Prim Sieb .', 'h-title');
   const hero = h('section', { class: 'h-hero' },
     h('div', { class: 'h-k' }, h('span', null, L('(00) — Übersicht', '(00) — Overview')), h('span', null, date)),
     title,
@@ -122,8 +123,22 @@ export function mountHome(root: HTMLElement) {
   } catch { /* ohne WebGL2 bleibt das Motiv dunkel */ }
 
   const lv = settings().game ? levelOf((settings().game as any).xp ?? 0).level : 0;
+  // Bestwerte als waagerechtes Karussell (einrastend)
+  const rm = rogueMeta();
+  const slides: [string, string, string, string][] = [
+    [L('Geräte-Check', 'Device check'), devBest ? N(devBest.points ?? 0) : '—', L('Punkte', 'points'), 'device'],
+    [L('Primzahlen', 'Primes'), prime ? N(prime.points ?? 0) : '—', L('Punkte', 'points'), 'prime'],
+    ['PRIMFALL', rm.bestScore ? N(rm.bestScore) : '—', L(`Rekord · ${rm.wins} Siege`, `best · ${rm.wins} wins`), 'rogue'],
+    [L('Singularität', 'Singularity'), bh ? N(bh.points ?? 0) : '—', L('Punkte', 'points'), 'bh'],
+    [L('KI-Leistung', 'AI performance'), ai ? F(ai.score, 0) : '—', 'GFLOPS FP16', 'ai'],
+  ];
+  const carousel = h('div', { class: 'carousel' }, slides.map(([t, v, u, target], i) =>
+    h('button', { class: 'slide', onclick: () => go(target) }, h('span', { class: 'sn' }, `${String(i + 1).padStart(2, '0')}/${String(slides.length).padStart(2, '0')}`),
+      h('b', null, v), h('small', null, u), h('span', { class: 'st' }, t))));
   root.append(h('div', { class: 'stack' },
-    hero, marquee, devCard, feat,
+    hero, marquee, devCard,
+    h('div', { class: 'sec-h' }, h('span', { class: 'n' }, '(★)'), h('h2', null, L('Bestwerte', 'Records')), h('small', null, L('wischen →', 'swipe →'))), carousel,
+    feat,
     sec('01', 'Benchmarks', L('CPU · GPU · RAM', 'CPU · GPU · RAM')),
     h('div', { class: 'ed-list' },
       row(['cluster', 220], L('Primzahlen', 'Primes'), L('Sieb des Eratosthenes auf allen Kernen', 'Sieve of Eratosthenes on all cores'), prime ? N(prime.points ?? 0) : '', L('Punkte', 'points'), 'prime'),

@@ -1,0 +1,54 @@
+Aufgabe: Baue in mein bestehendes Programm ein gut ausgebautes Roguelike mit Upgrade-System und Gamble-Elementen ein. Es soll motivierend sein und zum "nur noch ein Run" einladen.
+
+SCHRITT 0 – Erst verstehen, dann entscheiden
+- Erkunde zuerst das ganze Projekt: Sprache, Engine/Framework, Struktur, Render-Loop, Input, vorhandene Dateien.
+- Wähle dann selbst das Spielformat, das sich am besten in das Programm einfügt und sauber umsetzbar ist. Mögliche Richtungen (nicht abschließend):
+  a) Kartenbasiert (Deckbuilder à la Slay the Spire)
+  b) Quest-/Event-basiert mit Skill-Checks (Würfe gegen Schwierigkeitswerte, Entscheidungen, Textevents)
+  c) Rundenbasiert / Auto-Battler
+  d) Echtzeit-Action, falls das Projekt dafür schon die Grundlage hat
+  e) Mischform
+- Begründe deine Wahl in 5-10 Zeilen und beschreibe, wie du es einbaust (eigener Modus/Szene, ohne bestehenden Code kaputt zu machen). Dann direkt loslegen, kein langes Nachfragen.
+- Nutze nur Bibliotheken, die schon im Projekt sind, außer es ist wirklich nötig.
+
+RUN-STRUKTUR
+- Ein Run besteht aus einer Abfolge von Stationen (Kampf, Event, Händler, Casino, Elite, Rastplatz, Boss), idealerweise als Karte mit Verzweigungen, bei der man seinen Weg wählt.
+- Steigende Schwierigkeit, am Ende jedes Abschnitts ein Boss. Mindestens 2-3 Bosse mit besonderen Mechaniken.
+- Mindestens 5 verschiedene Gegnertypen/Herausforderungen mit unterschiedlichem Verhalten.
+- Prozedural generierte Runs, Zufall über einen Seed (reproduzierbar/teilbar).
+
+UPGRADE-SYSTEM
+- Nach Stationen: Auswahl aus 3 zufälligen Belohnungen (Seltenheiten: Common, Rare, Epic, Legendary).
+- Mindestens 40 Upgrades/Karten/Relikte, die miteinander Synergien bilden.
+- Build-Vielfalt: Jeder Run soll einen anderen Build ermöglichen, absurd starke "broken builds" sind erwünscht.
+- Meta-Progression: Nach dem Tod gibt es eine Dauerwährung für permanente Freischaltungen (neue Karten/Items, Startboni, neue Klassen/Charaktere).
+
+GAMBLE-ELEMENTE (nur Ingame-Währung, kein Echtgeld)
+- Casino-Station: Slot-Maschine, Würfel oder Kartenspiel, bei dem man Gold/HP/Items riskieren kann.
+- "Double or Nothing" bei Belohnungen, Truhen mit Risiko (Fluch oder Jackpot).
+- Reroll für Angebote mit steigenden Kosten.
+- Verfluchte Items: starker Bonus gegen einen Malus.
+- Skill-Checks mit sichtbarer Erfolgschance, bei denen man Einsatz erhöhen kann, um die Chance zu verbessern.
+- Pity-System im Hintergrund, damit Pech nie zu lange anhält, Jackpots aber selten und besonders bleiben.
+
+"SÜCHTIG MACHEN" – Feel & Psychologie
+- Juice: Animationen, Partikel, Screenshake, Zahlen die hochzählen, Soundeffekte, Flash bei Crits/Jackpots, Zeitlupe bei Boss-Kills.
+- Variable Belohnungen mit spannenden Reveals (Slot-Walzen drehen langsam aus, Near-Miss-Momente, Kartenaufdecken).
+- Schneller Loop: Tod → Ergebnis-Screen → neuer Run in unter 5 Sekunden.
+- Fortschrittsanzeigen überall (Achievements, Tagesziele, Freischalt-Balken, "nur noch X bis zum nächsten Unlock").
+- Combo-/Streak-Multiplikatoren, die riskantes Spielen belohnen.
+- Intensität steigt im Lauf des Runs (Musik, Effekte, Farben).
+- Highscore, Run-Statistiken, Run-Historie.
+
+TECHNIK
+- Saubere Modulstruktur (Gegner, Upgrades/Karten, Events, Gamble, UI, Meta-Progression getrennt).
+- Alles datengetrieben (z.B. JSON/Dicts), damit ich leicht neue Karten, Upgrades, Events und Gegner hinzufügen kann.
+- Meta-Fortschritt persistent in einer Datei speichern.
+- Performance stabil, keine unnötigen Allokationen im Loop.
+
+VORGEHEN
+1. Plan kurz zeigen, dann in Etappen umsetzen: spielbarer Kern → Upgrades → Gamble → Meta-Progression → Juice/Polish.
+2. Nach jeder Etappe starten/testen und Fehler selbst fixen.
+3. Am Ende: kurze Anleitung zu Start, Steuerung und wie ich neue Inhalte hinzufüge.
+
+Gib nicht auf halbem Weg auf, liefere eine komplett spielbare Version.

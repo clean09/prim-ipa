@@ -13,6 +13,29 @@ import { showHelp } from '../ui/help';
 type Task = 'pi' | 'fib' | 'nbody' | 'collatz';
 let lastTask: Task = 'pi';
 
+/**
+ * Größte BigInt-Länge in Bit, die die JS-Engine erlaubt. Safari/iOS (JavaScriptCore) bricht bei ≈ 2²⁴ Bit mit
+ * „Out of memory: BigInt … too big“ ab, Chrome/Android erst bei 2³⁰. Nur unter WebKit wird nachgemessen.
+ */
+let bigLimit = 0;
+function maxBigIntBits() {
+  if (bigLimit) return bigLimit;
+  const ua = navigator.userAgent;
+  const jsc = /AppleWebKit/.test(ua) && !/Chrome|Chromium|Android|Edg/.test(ua);
+  bigLimit = 2 ** 30;
+  if (jsc) {
+    bigLimit = 2 ** 20;
+    for (const b of [26, 25, 24, 23, 22, 21]) { try { void (1n << BigInt(2 ** b - 64)); bigLimit = 2 ** b; break; } catch { /* zu groß */ } }
+  }
+  return bigLimit;
+}
+/** Grobe Obergrenze der Zwischenergebnisse in Bit (π: Wurzel aus 10^(2d), Fibonacci: F(n) ≈ 0,694·n Bit). */
+const piBits = (d: number) => d * 3.33 * 2.3;
+const fibBits = (n: number) => n * 0.6943 * 1.05;
+const fits = (bits: number) => bits < maxBigIntBits() * 0.9;
+const limitNote = (hidden: boolean) => hidden ? h('div', { class: 'muted small' }, L('Größere Stufen sind auf diesem Gerät ausgeblendet: Safari/iOS erlaubt nur Ganzzahlen bis ≈ 16 Mio. Bit (≈ 5 Mio. Dezimalstellen).',
+  'Larger sizes are hidden on this device: Safari/iOS only allows integers up to ≈ 16 million bits (≈ 5 million decimal digits).')) : '';
+
 export function mountLab(root: HTMLElement) {
   let pool: MathPool | null = null;
   const getPool = () => (pool ??= new MathPool(cores()));
@@ -45,7 +68,13 @@ export function mountLab(root: HTMLElement) {
       try { await onStart(ui); }
       catch (e: any) {
         if (isCancel(e) || e?.message === 'stopped') { status.textContent = L('Abgebrochen', 'Aborted'); if (hiddenAbort) lg.add(L('Die App war im Hintergrund – Lauf abgebrochen.', 'The app went to the background – run aborted.')); }
-        else { status.textContent = L('Fehler', 'Error'); lg.add(tr(String(e?.message ?? e))); }
+        else {
+          status.textContent = L('Fehler', 'Error');
+          const msg = String(e?.message ?? e);
+          lg.add(/out of memory|too big|allocation|Invalid BigInt|Maximum BigInt/i.test(msg)
+            ? L('Zu wenig Speicher für diese Größe auf diesem Gerät – bitte eine kleinere Stufe wählen.', 'Not enough memory for this size on this device – please choose a smaller size.')
+            : tr(msg));
+        }
       } finally {
         stopFn = null;
         startBtn.disabled = false; stopBtn.disabled = true; taskSeg.enable(true);
@@ -67,8 +96,10 @@ export function mountLab(root: HTMLElement) {
   // ------------------------------------------------------------------------------------------- π
   function buildPi() {
     let digits = 100_000, save = false;
+    const piOpts = ([[10_000, '10.000'], [100_000, '100.000'], [1_000_000, L('1 Million', '1 million')], [2_000_000, L('2 Millionen', '2 million')]] as [number, string][]).filter(([v]) => fits(piBits(v)));
     const settingsEl = h('div', { class: 'stack', style: { gap: '8px' } },
-      field(L('Nachkommastellen', 'Decimal digits'), select<number>([[10_000, '10.000'], [100_000, '100.000'], [1_000_000, L('1 Million', '1 million')], [2_000_000, L('2 Millionen', '2 million')]].map(([v, l]) => [v as number, isEnLabel(l as string)]), digits, v => (digits = v))),
+      field(L('Nachkommastellen', 'Decimal digits'), select<number>(piOpts.map(([v, l]) => [v as number, isEnLabel(l as string)]), digits, v => (digits = v))),
+      limitNote(piOpts.length < 4),
       toggle(L('Ziffern als Datei teilen', 'Share digits as file'), false, v => (save = v)));
     const walk = h('canvas', { class: 'vis', style: { height: '240px' } });
     const freq = h('canvas', { class: 'vis', style: { height: '110px' } });
@@ -107,7 +138,8 @@ export function mountLab(root: HTMLElement) {
   // ------------------------------------------------------------------------------------------- Fibonacci
   function buildFib() {
     let task: 'fib' | 'prime' = 'fib', n = 1_000_000, limit = 5000, save = false;
-    const nSel = field('n', select<number>([[100_000, 'F(100.000)'], [1_000_000, 'F(1 Mio.)'], [10_000_000, 'F(10 Mio.)'], [30_000_000, 'F(30 Mio.)']].map(([v, l]) => [v as number, isEnLabel(l as string)]), n, v => (n = v)));
+    const fibOpts = ([[100_000, 'F(100.000)'], [1_000_000, 'F(1 Mio.)'], [10_000_000, 'F(10 Mio.)'], [30_000_000, 'F(30 Mio.)']] as [number, string][]).filter(([v]) => fits(fibBits(v)));
+    const nSel = field('n', h('div', { class: 'stack', style: { gap: '6px' } }, select<number>(fibOpts.map(([v, l]) => [v as number, isEnLabel(l as string)]), n, v => (n = v)), limitNote(fibOpts.length < 4)));
     const limSel = field(L('Suche bis Index n', 'Search up to index n'), select<number>([[1000, '1.000'], [5000, '5.000'], [12000, '12.000'], [30000, '30.000']].map(([v, l]) => [v as number, isEnLabel(l as string)]), limit, v => (limit = v)));
     const saveTg = toggle(L('Zahl als Datei teilen', 'Share number as file'), false, v => (save = v));
     limSel.hidden = true;

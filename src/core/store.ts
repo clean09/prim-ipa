@@ -82,7 +82,7 @@ function put(key: string, value: string) {
 }
 
 export async function loadStore() {
-  for (const k of ['settings', 'scores', 'checkpoint']) {
+  for (const k of ['settings', 'scores', 'checkpoint', 'rogue', 'rogueRun']) {
     const v = await get('primsieb.' + k);
     if (v != null) cache.set('primsieb.' + k, v);
   }
@@ -116,3 +116,7 @@ export function deleteScores() { put('primsieb.scores', '[]'); }
 
 export const checkpoint = (): Checkpoint | null => read<Checkpoint | null>('checkpoint', null);
 export const saveCheckpoint = (c: Checkpoint | null) => put('primsieb.checkpoint', JSON.stringify(c));
+
+/** Freie Datenablage (z. B. Roguelike-Fortschritt), dauerhaft wie die Einstellungen. */
+export const loadData = <T>(key: string, def: T): T => read<T>(key, def);
+export const saveData = (key: string, v: unknown) => put('primsieb.' + key, JSON.stringify(v));

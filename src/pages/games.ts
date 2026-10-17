@@ -9,6 +9,8 @@ import { TIPS } from '../games/numbers';
 import { GameId, levelOf, levelTitle, stats } from '../games/progress';
 import { launch } from './play';
 import { SpaceKind, spaceStyle } from '../ui/cosmos';
+import { meta, nextGoal } from '../rogue/meta';
+import { loadRun } from '../rogue/run';
 
 interface Card { id: GameId; art: string; title: () => string; sub: () => string; space: [SpaceKind, number]; unit: () => string; wide?: boolean }
 const CARDS: Card[] = [
@@ -76,7 +78,23 @@ export function mountGames(root: HTMLElement) {
   const tips = TIPS();
   const tip = h('p', { class: 'muted small', style: { textAlign: 'center' } }, `💡 ${tips[Math.floor(Math.random() * tips.length)]}`);
 
-  root.append(h('div', { class: 'stack' }, player, daily, grid, achRow, world, tip));
+  // ---------------------------------------------------------------- PRIMFALL (Roguelike) als Hauptspiel
+  const m = meta(), saved = loadRun(), goal = nextGoal();
+  const rogue = h('div', { class: 'pf-hero', onclick: () => { sfx.tap(); go('rogue'); } },
+    h('div', { class: 'pf-bg' }, ...Array.from({ length: 14 }, (_, i) => h('span', { style: { '--i': String(i) } as any }, String([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43][i])))),
+    h('div', { class: 'pf-k' }, L('NEU · Roguelike-Deckbuilder', 'NEW · roguelike deckbuilder')),
+    h('div', { class: 'pf-logo' }, h('span', null, 'PRIM'), h('b', null, 'FALL')),
+    h('p', null, L('Spiele Karten, triff Primzahlen, baue absurde Kombos. 3 Akte, 3 Bosse, Casino, Flüche – und nach jedem Lauf wirst du stärker.',
+      'Play cards, hit primes, build absurd combos. 3 acts, 3 bosses, casino, curses – and you grow stronger after every run.')),
+    h('div', { class: 'pf-row' },
+      h('div', null, h('b', null, `✨ ${N(m.staub)}`), h('small', null, L('Sternenstaub', 'Stardust'))),
+      h('div', null, h('b', null, N(m.bestScore)), h('small', null, L('Rekord', 'Best'))),
+      h('div', null, h('b', null, `${m.daily.goals.filter(g => g.done).length}/3`), h('small', null, L('Tagesziele', 'Daily goals')))),
+    goal ? h('div', { class: 'pf-goal' }, h('small', null, `${L('Nächste Freischaltung', 'Next unlock')}: ${goal.label}`), h('div', null, h('i', { style: { width: `${Math.min(100, (m.staub / goal.cost) * 100)}%` } }))) : '',
+    h('div', { class: 'pf-cta' }, saved ? L(`▶ Lauf fortsetzen · Akt ${saved.act}`, `▶ Continue run · act ${saved.act}`) : L('▶ Spielen', '▶ Play')));
+  const arcade = h('div', { class: 'sec-h' }, h('span', { class: 'n' }, '(B)'), h('h2', null, 'Arcade'), h('small', null, L('Kurze Runden', 'Quick rounds')));
+
+  root.append(h('div', { class: 'stack' }, rogue, arcade, player, daily, grid, achRow, world, tip));
   return () => clearInterval(timer);
 }
 

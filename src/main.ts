@@ -12,7 +12,7 @@ import { flush, setConsentDialog } from './core/leaderboard';
 import { confirmSheet, h, sheet } from './ui/dom';
 import { showHelp } from './ui/help';
 import { ICONS, IconName } from './ui/icons';
-import { intro, maskTitle, reveal, scramble } from './ui/motion';
+import { curtain, intro, maskTitle, reveal, scramble, tilt } from './ui/motion';
 import { PAGES, Page } from './pages';
 
 type Cleanup = void | (() => void);
@@ -38,7 +38,7 @@ const TABS: [string, IconName, () => string][] = [
   ['more', 'more', () => L('Alles', 'All')],
 ];
 /** Reihenfolge aller Seiten (für Seitennummer und Fahrtrichtung). */
-const ORDER = ['home', 'star', 'games', 'play', 'device', 'more', 'prime', 'ai', 'ram', 'bh', 'lab', 'board', 'check', 'info'];
+const ORDER = ['home', 'star', 'games', 'rogue', 'play', 'device', 'more', 'prime', 'ai', 'ram', 'bh', 'lab', 'board', 'check', 'info'];
 
 function renderTabs() {
   tabsEl.querySelectorAll('button').forEach(b => b.remove());
@@ -68,6 +68,11 @@ async function go(id: string, replace = false) {
     if (!ok) return;
   }
   if (replace) history.replaceState(null, '', '#/' + id); else history.pushState(null, '', '#/' + id);
+  // Vorhang nur beim Wechsel zwischen Hauptbereichen (Tabs), nicht in Unterseiten
+  const target = PAGES[id];
+  if (current && target && !target.parent && !current.parent && TABS.some(t => t[0] === id)) {
+    await curtain(target.title(), `(${String(ORDER.indexOf(id) + 1).padStart(2, '0')})`);
+  }
   show(id);
 }
 
@@ -95,7 +100,7 @@ function show(id: string) {
   // großer Seitenkopf (Rubrik + Titel aus der Maske)
   if (!page.full && !page.noHead) {
     const k = h('div', { class: 'phead-k' }, `(${String(no).padStart(2, '0')}) — ${page.kicker?.() ?? ''}`);
-    const head = h('header', { class: 'phead' }, k, maskTitle(page.title()));
+    const head = h('header', { class: 'phead', 'data-no': String(no).padStart(2, '0') }, k, maskTitle(page.title()));
     pageEl.append(head);
     scramble(k);
   }
@@ -105,6 +110,7 @@ function show(id: string) {
     const st = pageEl.querySelector(':scope > .stack');
     st?.querySelectorAll(':scope > *').forEach(el => el.classList.add('rv'));
     reveal(pageEl);
+    pageEl.querySelectorAll<HTMLElement>('.hero, .feat, .pf-hero, .dcard').forEach(el => tilt(el));
   }
 }
 
@@ -156,7 +162,18 @@ window.addEventListener('popstate', () => {
 });
 window.addEventListener('resize', moveMark);
 // Kopf verdichtet sich beim Scrollen (Titel erscheint klein, wenn der große Titel weg ist)
-pageEl.addEventListener('scroll', () => app.classList.toggle('scrolled', pageEl.scrollTop > 70), { passive: true });
+const progressEl = document.createElement('i');
+progressEl.id = 'scrollbar';
+document.getElementById('top')!.append(progressEl);
+pageEl.addEventListener('scroll', () => {
+  const y = pageEl.scrollTop;
+  app.classList.toggle('scrolled', y > 70);
+  // Lesefortschritt + Parallaxe des großen Seitenkopfs
+  const max = pageEl.scrollHeight - pageEl.clientHeight;
+  progressEl.style.transform = `scaleX(${max > 0 ? Math.min(1, y / max) : 0})`;
+  const head = pageEl.querySelector<HTMLElement>('.phead, .h-hero');
+  if (head && y < 600) { head.style.setProperty('--py', `${y * 0.35}px`); head.style.setProperty('--po', String(Math.max(0, 1 - y / 320))); }
+}, { passive: true });
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) window.dispatchEvent(new Event('app-hidden'));
@@ -189,6 +206,8 @@ async function start() {
   history.replaceState(null, '', '#/' + id);
   if (isNative) {
     CapApp.addListener('backButton', () => {
+      const fs = document.querySelector('[data-fs]') as any;
+      if (fs) { fs.close?.(); return; }
       if (document.querySelector('.sheet')) { (document.querySelector('.sheet-bg') as HTMLElement)?.click(); return; }
       if (current?.parent) history.back();
       else if (current?.id !== 'home') go('home');
