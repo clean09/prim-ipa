@@ -1,0 +1,97 @@
+# iOS-Build in der Cloud (GitHub Actions, macOS) → Upload zu App Store Connect / TestFlight.
+# Signieren übernimmt Xcode automatisch über einen App-Store-Connect-API-Schlüssel – kein Mac, kein Zertifikat nötig.
+#
+# Einmalig in GitHub unter Settings → Secrets and variables → Actions anlegen:
+#   APPLE_TEAM_ID          Team-ID (developer.apple.com → Membership, 10 Zeichen)
+#   ASC_KEY_ID             Key ID des API-Schlüssels (App Store Connect → Benutzer und Zugriff → Integrationen → Team-Schlüssel, Rolle „App-Manager“)
+#   ASC_ISSUER_ID          Issuer ID (steht über der Schlüsselliste)
+#   ASC_KEY_P8             Inhalt der heruntergeladenen AuthKey_XXXX.p8 (komplett, mit BEGIN/END-Zeilen)
+#
+# Starten: Actions → „iOS“ → „Run workflow“. Ohne Secrets wird nur ein unsignierter Test-Build für den Simulator gebaut.
+name: iOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: 'Zu App Store Connect / TestFlight hochladen'
+        type: boolean
+        default: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Web-App bauen
+        run: |
+          npm ci
+          npm run build
+          npx cap sync ios
+
+      - name: Xcode wählen
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app || true
+
+      - name: CocoaPods
+        working-directory: ios/App
+        run: pod install
+
+      - name: Test-Build (Simulator, unsigniert)
+        if: ${{ !inputs.upload }}
+        working-directory: ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
+
+      - name: API-Schlüssel ablegen
+        if: ${{ inputs.upload }}
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$ASC_KEY_P8" > ~/private_keys/AuthKey.p8
+
+      - name: Archiv bauen und hochladen
+        if: ${{ inputs.upload }}
+        working-directory: ios/App
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          # Build-Nummer muss bei jedem Upload steigen
+          BUILD=$(( ${{ github.run_number }} + 1 ))
+          AUTH="-allowProvisioningUpdates -authenticationKeyPath $HOME/private_keys/AuthKey.p8 -authenticationKeyID $KEY_ID -authenticationKeyIssuerID $ISSUER_ID"
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath $RUNNER_TEMP/App.xcarchive \
+            DEVELOPMENT_TEAM=$TEAM_ID CODE_SIGN_STYLE=Automatic CURRENT_PROJECT_VERSION=$BUILD \
+            $AUTH archive
+          cat > $RUNNER_TEMP/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath $RUNNER_TEMP/App.xcarchive \
+            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist -exportPath $RUNNER_TEMP/export $AUTH
+
+      - name: Archiv aufbewahren
+        if: ${{ inputs.upload }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrimSieb-iOS-xcarchive
+          path: ${{ runner.temp }}/App.xcarchive
+          retention-days: 14

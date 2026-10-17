@@ -1,0 +1,16 @@
+{
+  "name": "primsieb-leaderboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute primsieb --remote --file=schema.sql",
+    "db:init:local": "wrangler d1 execute primsieb --local --file=schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.20.0",
+    "@cloudflare/workers-types": "^4.20250601.0",
+    "typescript": "^5.9.3"
+  }
+}

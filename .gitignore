@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+# Signaturschlüssel / Zugangsdaten nie einchecken
+*.jks
+*.keystore
+*.p8
+*.p12
+keystore.properties
+.env
+.env.*.local
+.env.local
+
+# Bauergebnisse
+*.apk
+*.ipa

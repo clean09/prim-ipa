@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0e0f12" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="format-detection" content="telephone=no" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <title>PrimSieb</title>
+</head>
+<body>
+  <div id="app">
+    <header id="top">
+      <button id="back" class="icon-btn" aria-label="Zurück" hidden>
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div id="brand"><b>PrimSieb</b><span id="idx"></span></div>
+      <h1 id="title">PrimSieb</h1>
+      <button id="search" class="icon-btn" aria-label="Register">
+        <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+      <button id="help" class="icon-btn" aria-label="Hilfe" hidden>?</button>
+    </header>
+    <main id="page"></main>
+    <nav id="tabs"><i id="tabmark"></i></nav>
+  </div>
+  <div id="grain"></div>
+  <div id="sheet-root"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

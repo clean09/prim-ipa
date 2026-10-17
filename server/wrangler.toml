@@ -1,0 +1,8 @@
+name = "primsieb-leaderboard"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "primsieb"
+database_id = "7d58ac8c-79e3-4582-9a75-83cb22bbd923"
