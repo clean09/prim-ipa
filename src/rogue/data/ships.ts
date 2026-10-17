@@ -24,7 +24,7 @@ export const SHIPS: ShipDef[] = [
 export const SHIP: Record<string, ShipDef> = Object.fromEntries(SHIPS.map(s => [s.id, s]));
 
 // ------------------------------------------------------------------------------------------- Forschungsbaum
-export type NodeType = 'ship' | 'sector' | 'pack' | 'talent';
+export type NodeType = 'ship' | 'sector' | 'pack' | 'deck' | 'talent';
 export interface ResearchNode {
   id: string; type: NodeType; icon: string; name: [string, string]; text: [string, string];
   cost: (lv: number) => number; max: number; needs?: string[];
@@ -48,6 +48,11 @@ export const RESEARCH: ResearchNode[] = [
   { id: 'p-geist', type: 'pack', icon: '👻', name: T('Logikgeister', 'Logic Ghosts'), text: T('Logikgeist', 'Logic Ghost'), cost: () => 420, max: 1, needs: ['p-zeit'] },
   { id: 'p-sternbild', type: 'pack', icon: '✨', name: T('Sternbilder', 'Constellations'), text: T('Sternbild, Sphärenharfe', 'Constellation, Harp of Spheres'), cost: () => 560, max: 1, needs: ['p-handel'] },
   { id: 'p-krone', type: 'pack', icon: '👑', name: T('Kaiserliche Schatzkammer', 'Imperial Treasury'), text: T('Kaiserkrone', 'Imperial Crown'), cost: () => 950, max: 1, needs: ['p-sternbild', 'p-geist'] },
+  // Startdecks (Konstellationen)
+  { id: 'd-isotop', type: 'deck', icon: '☢', name: T('Startdeck Isotopen', 'Starter deck Isotopes'), text: T('Strahlung, die sich aufschaukelt.', 'Radiation that builds up.'), cost: () => 180, max: 1 },
+  { id: 'd-uhrwerk', type: 'deck', icon: '⚙', name: T('Startdeck Uhrwerk', 'Starter deck Clockwork'), text: T('Halten, Schubsen, mehr Drehs.', 'Hold, nudge, more spins.'), cost: () => 280, max: 1 },
+  { id: 'd-leere', type: 'deck', icon: '◬', name: T('Startdeck Leerenzeichen', 'Starter deck Void Sigils'), text: T('Schwächen und aufbrechen.', 'Weaken and breach.'), cost: () => 380, max: 1, needs: ['d-isotop'] },
+  { id: 'd-chor', type: 'deck', icon: '✧', name: T('Startdeck Himmelschor', 'Starter deck Celestial Choir'), text: T('Synergien heilen, Kosmos wird Joker.', 'Synergies heal, cosmos turns wild.'), cost: () => 520, max: 1, needs: ['d-uhrwerk'] },
   // Talente (mehrstufig)
   { id: 't-huelle', type: 'talent', icon: '🛡️', name: T('Verstärkte Hülle', 'Reinforced Hull'), text: T('+6 max. Hülle je Stufe', '+6 max hull per level'), cost: lv => 60 + lv * 45, max: 5 },
   { id: 't-gold', type: 'talent', icon: '🪙', name: T('Erbschaft', 'Inheritance'), text: T('+25 Startgold je Stufe', '+25 starting gold per level'), cost: lv => 50 + lv * 40, max: 4 },

@@ -9,10 +9,11 @@ import { ENEMIES, SECTOR } from './data/enemies';
 import { EVENTS } from './data/events';
 import { MUTATORS, RESEARCH, SHIP, SHIPS } from './data/ships';
 import { CAST, CHAPTERS } from './data/story';
+import { CONSTELLATIONS } from './data/constellations';
 import { goldFor } from './reactor';
 import { Particles, countUp, flash, haptic, music, shake, snd } from './juice';
 import {
-  ACHIEVEMENTS, GOALS, canResearch, discover, finishRun, level, meta, nextGoal, onAchievement, onChapter, onGoal, research, researchProgress,
+  ACHIEVEMENTS, GOALS, canResearch, discover, packUnlocked, finishRun, level, meta, nextGoal, onAchievement, onChapter, onGoal, research, researchProgress,
   saveMeta, shipUnlocked, story, track, unlock, weekKey,
 } from './meta';
 import { dailySeed, hashSeed, newSeed, pick, rngOf, step, weighted } from './rng';
@@ -21,7 +22,7 @@ import {
   rerollCost, runCtx, saveRun, sectorOf, symbolOffer, symbolPrice, upgradeCost,
 } from './run';
 import { EventDef, EventOption, MapNode, Run } from './types';
-import { NODE_ICON, NODE_NAME, cardEl, cardPreview, chooseReel, longPress, pickSymbol, playChapter, portrait, showReels, topBar, tx } from './ui/parts';
+import { NODE_ICON, NODE_NAME, cardEl, cardPreview, chooseReel, longPress, pickSymbol, playChapter, portrait, showConsts, showReels, topBar, tx } from './ui/parts';
 import { rules, runFight } from './ui/reactorView';
 import { enemySvg, ornament, sectorPattern, shipSvg, symbolSvg } from './art';
 
@@ -33,6 +34,7 @@ export class Game {
   private storyQueue: string[] = [];
   ship = 'kreuzer';
   asc = 0;
+  deck = '';
 
   constructor(readonly host: HTMLElement, readonly exit: () => void) {
     host.classList.add('sf');
@@ -106,20 +108,27 @@ export class Game {
         ok ? h('div', { class: 'sf-shipstats' }, `⛨ ${s.hp} · ♨ ${s.heatMax} · ✦ ${s.gold}`) : ''));
     }
     body.append(row);
+    body.append(h('div', { class: 'sf-sec' }, L('Startdeck', 'Starter deck')));
+    const decks = h('div', { class: 'sf-decks' },
+      h('button', { class: 'sf-deck' + (this.deck === '' ? ' on' : ''), onclick: () => { this.deck = ''; this.hub('play'); } }, h('span', { class: 'ic' }, '✦'), h('b', null, L('Schiff', 'Ship')), h('small', null, L('Standard', 'Default'))),
+      ...CONSTELLATIONS.map(c => { const ok = packUnlocked(c.unlock); return h('button', { class: 'sf-deck' + (this.deck === c.id ? ' on' : '') + (ok ? '' : ' locked'), style: { '--cc': c.color } as any,
+        onclick: () => { if (!ok) { toast(L('Im Forschungslabor freischalten.', 'Unlock in the research lab.')); return; } this.deck = c.id; this.hub('play'); } },
+        h('span', { class: 'ic' }, ok ? c.icon : '🔒'), h('b', null, tx(c.name)), h('small', null, ok ? tx(c.idea) : L('Forschung', 'Research'))); }));
+    body.append(decks, h('button', { class: 'sf-link', onclick: () => showConsts(this.run ?? newRun(this.ship, 'X', 0, { deck: this.deck })) }, L('Alle Konstellationen ansehen', 'View all constellations')));
     if (m.ascMax > 0) body.append(h('div', { class: 'sf-asc' }, h('small', null, L('Gefahrenstufe', 'Danger')),
       ...Array.from({ length: m.ascMax + 1 }, (_, i) => h('button', { class: i === this.asc ? 'on' : '', onclick: () => { this.asc = i; this.hub('play'); } }, String(i))),
       h('small', { class: 'muted' }, this.asc ? L(`+${this.asc * 8} % Gegner-Hülle · +${this.asc * 20} % Punkte`, `+${this.asc * 8} % enemy hull · +${this.asc * 20} % score`) : '')));
     const seedIn = h('input', { type: 'text', placeholder: L('Seed (leer = zufällig)', 'Seed (empty = random)'), class: 'sf-seed' }) as HTMLInputElement;
-    body.append(h('button', { class: 'sf-go', onclick: () => this.start(this.ship, seedIn.value.trim().toUpperCase() || newSeed(), this.asc) },
+    body.append(h('button', { class: 'sf-go', onclick: () => this.start(this.ship, seedIn.value.trim().toUpperCase() || newSeed(), this.asc, { deck: this.deck }) },
       h('b', null, this.run ? L('Neuer Flug', 'New flight') : L('Abheben', 'Launch')), h('small', null, tx(SHIP[this.ship].name))), seedIn);
     const day = todayKey(), wk = weekKey();
     let ws = hashSeed(wk);
     const muts: string[] = [];
     while (muts.length < 2) { const [x, n] = step(ws); ws = n; const id = MUTATORS[Math.floor(x * MUTATORS.length)].id; if (!muts.includes(id)) muts.push(id); }
     body.append(
-      h('button', { class: 'sf-special' + (m.daily.runDone ? ' done' : ''), onclick: () => this.start(this.ship, dailySeed(day), 0, { daily: day }) },
+      h('button', { class: 'sf-special' + (m.daily.runDone ? ' done' : ''), onclick: () => this.start(this.ship, dailySeed(day), 0, { daily: day, deck: this.deck }) },
         h('b', null, `☀ ${L('Tagesflug', 'Daily flight')}`), h('small', null, L('Gleicher Seed für alle · ×1,5 Sternenstaub', 'Same seed for everyone · ×1.5 stardust'))),
-      h('button', { class: 'sf-special weekly', onclick: () => this.start(this.ship, `WEEK-${wk}`, 0, { weekly: wk, mutators: muts }) },
+      h('button', { class: 'sf-special weekly', onclick: () => this.start(this.ship, `WEEK-${wk}`, 0, { weekly: wk, mutators: muts, deck: this.deck }) },
         h('b', null, `☾ ${L('Wochen-Expedition', 'Weekly expedition')} ${wk.slice(-3)}`),
         h('small', null, muts.map(id => { const x = MUTATORS.find(y => y.id === id)!; return `${tx(x.name)}: ${tx(x.text)}`; }).join(' · ')),
         m.weekly.week === wk ? h('small', { class: 'gold' }, L(`Dein Bestwert diese Woche: ${N(m.weekly.best)}`, `Your best this week: ${N(m.weekly.best)}`)) : ''));
@@ -134,7 +143,7 @@ export class Game {
   private hubLab(body: HTMLElement) {
     const m = meta();
     body.append(h('p', { class: 'sf-note' }, L('Sternenstaub bekommst du nach jedem Flug – auch nach einer Niederlage. Was du hier erforschst, bleibt für immer.', 'You earn stardust after every flight – even a lost one. What you research here stays forever.')));
-    const groups: [string, string][] = [['ship', L('Schiffe', 'Ships')], ['sector', L('Sektoren', 'Sectors')], ['pack', L('Symbolpakete', 'Symbol packs')], ['talent', L('Talente', 'Talents')]];
+    const groups: [string, string][] = [['ship', L('Schiffe', 'Ships')], ['sector', L('Sektoren', 'Sectors')], ['pack', L('Symbolpakete', 'Symbol packs')], ['deck', L('Startdecks', 'Starter decks')], ['talent', L('Talente', 'Talents')]];
     for (const [type, title] of groups) {
       body.append(h('div', { class: 'sf-sec' }, title));
       for (const n of RESEARCH.filter(x => x.type === type)) {
@@ -191,7 +200,7 @@ export class Game {
   }
 
   // =========================================================================================== Start, Karte
-  start(ship: string, seed: string, asc: number, o: { daily?: string; weekly?: string; mutators?: string[] } = {}) {
+  start(ship: string, seed: string, asc: number, o: { daily?: string; weekly?: string; mutators?: string[]; deck?: string } = {}) {
     this.run = newRun(ship, seed, asc, o);
     this.ship = ship;
     for (const r of this.run.reels) for (const s of r) discover('syms', s.id);
@@ -337,7 +346,7 @@ export class Game {
         box.append(h('div', { class: 'sf-sec' }, L('Neues Symbol für deinen Reaktor', 'A new symbol for your reactor')));
         const row = h('div', { class: 'sf-pick' });
         offer.forEach((id, i) => {
-          const el = cardEl(id); el.classList.add('reveal'); el.style.setProperty('--i', String(i));
+          const el = cardEl(id, 1, { run }); el.classList.add('reveal'); el.style.setProperty('--i', String(i));
           el.addEventListener('click', async () => {
             if (el.dataset.lp) { delete el.dataset.lp; return; }
             const reel = await chooseReel(run, id);
@@ -463,7 +472,7 @@ export class Game {
       box.append(h('div', { class: 'sf-sec' }, L('Wähle ein Symbol', 'Choose a symbol')));
       const row = h('div', { class: 'sf-pick' });
       for (const id of res.pickSymbol) {
-        const el = cardEl(id); el.classList.add('reveal');
+        const el = cardEl(id, 1, { run }); el.classList.add('reveal');
         el.addEventListener('click', async () => { const reel = await chooseReel(run, id); if (reel == null) return; runCtx(run).addSymbol(id, reel); discover('syms', id); this.save(); row.remove(); snd.card(); });
         row.append(el);
       }
@@ -505,7 +514,7 @@ export class Game {
         h('div', { class: 'sf-npc' }, portrait('ozzo'), h('div', null, h('b', null, tx(CAST.ozzo.name)), h('p', null, `„${greet}“`))), box);
       const grid = h('div', { class: 'sf-shopgrid' });
       for (const w of wares) {
-        const el = h('div', { class: 'sf-ware' + (w.sold ? ' sold' : '') }, cardEl(w.id), h('div', { class: 'price' + (run.gold < w.price ? ' no' : '') }, w.sold ? L('verkauft', 'sold') : `${w.price} ✦`));
+        const el = h('div', { class: 'sf-ware' + (w.sold ? ' sold' : '') }, cardEl(w.id, 1, { run }), h('div', { class: 'price' + (run.gold < w.price ? ' no' : '') }, w.sold ? L('verkauft', 'sold') : `${w.price} ✦`));
         el.addEventListener('click', async () => { if (el.dataset.lp) { delete el.dataset.lp; return; } if (w.sold || run.gold < w.price) { snd.miss(); return; } const reel = await chooseReel(run, w.id); if (reel == null) return; run.gold -= w.price; runCtx(run).addSymbol(w.id, reel); discover('syms', w.id); w.sold = true; snd.coin(); this.save(); render(); });
         longPress(el, () => cardPreview(w.id));
         grid.append(el);

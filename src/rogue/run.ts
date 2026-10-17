@@ -5,6 +5,8 @@ import { SYM, SYMBOLS } from './data/symbols';
 import { MOD, MODULES } from './data/modules';
 import { SECTORS } from './data/enemies';
 import { SHIP } from './data/ships';
+import { CONST, CONSTELLATIONS, constCounts } from './data/constellations';
+const CONSTELLATIONS_IDX: Record<string, number> = Object.fromEntries(CONSTELLATIONS.map((c, i) => [c.id, i + 1]));
 import { level, packUnlocked, track, unlock } from './meta';
 import { hashSeed, pick, rngOf, shuffle, weighted } from './rng';
 import { MapNode, NodeKind, Outcome, Rarity, Run, RunCtx, SymInst } from './types';
@@ -13,7 +15,7 @@ export const ROWS = 11;
 export const COLS = 4;
 export const REEL_MAX = 9;
 
-export function newRun(ship: string, seed: string, asc = 0, o: { daily?: string; weekly?: string; mutators?: string[] } = {}): Run {
+export function newRun(ship: string, seed: string, asc = 0, o: { daily?: string; weekly?: string; mutators?: string[]; deck?: string } = {}): Run {
   const sh = SHIP[ship] ?? SHIP.kreuzer;
   const run: Run = {
     seed, ship: sh.id, act: 1, floor: 0, sectors: [], hp: sh.hp, maxHp: sh.hp, gold: sh.gold, reels: [[], [], []], modules: [],
@@ -39,7 +41,10 @@ export function newRun(ship: string, seed: string, asc = 0, o: { daily?: string;
   if (run.mutators.includes('reich')) run.mods.goldMult = 2;
   if (run.mutators.includes('bosse')) run.mods.bossHp = 0.3;
   const rc = runCtx(run);
-  sh.reels.forEach((reel, i) => reel.forEach(id => rc.addSymbol(id, i)));
+  // Startdeck: ersetzt das letzte Symbol jeder Walze durch den Kern einer Konstellation
+  const deck = o.deck && CONST[o.deck] ? CONST[o.deck].starter : null;
+  sh.reels.forEach((reel, i) => reel.forEach((id, k) => rc.addSymbol(deck && k === reel.length - 1 ? deck[i] : id, i)));
+  if (deck) run.mods.deck = CONSTELLATIONS_IDX[o.deck!] ?? 0;
   if (run.mutators.includes('schrott')) { rc.addSymbol('schrott', 0); rc.addSymbol('schrott', 1); rc.addSymbol('schrott', 2); }
   addModule(run, sh.module);
   if (level('t-modul')) { const m = moduleOffer(run, 1, 'common')[0]; if (m) addModule(run, m); }
@@ -134,9 +139,17 @@ function rollRarity(run: Run, boost = 0): Rarity {
 export const symbolPool = () => SYMBOLS.filter(s => !s.noOffer && packUnlocked(s.pack));
 export function symbolOffer(run: Run, n = 3, boost = 0): string[] {
   const r = rngOf(run), pool = symbolPool(), out: string[] = [];
+  // Bevorzugt Konstellationen, die man schon sammelt (gewichtet nach Anzahl) – so entstehen Builds
+  const cnt = Object.entries(constCounts(run)).filter(([, k]) => k >= 2);
   for (let i = 0; i < n; i++) {
     let rar = rollRarity(run, boost);
     let c = pool.filter(s => s.rarity === rar && !out.includes(s.id));
+    if (cnt.length && r() < 0.45) {
+      const arch = weighted(r, cnt.map(([a, k]) => [a, k] as [string, number]));
+      const m = new Set(CONST[arch].members);
+      const f = pool.filter(s => m.has(s.id) && !out.includes(s.id) && (s.rarity === rar || r() < 0.5));
+      if (f.length) c = f;
+    }
     while (!c.length && rar !== 'common') { rar = rar === 'legendary' ? 'epic' : rar === 'epic' ? 'rare' : 'common'; c = pool.filter(s => s.rarity === rar && !out.includes(s.id)); }
     if (!c.length) c = pool.filter(s => !out.includes(s.id));
     out.push(pick(r, c).id);

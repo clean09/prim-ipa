@@ -716,3 +716,7 @@ a { color: var(--accent); }
 .slide:nth-child(3) { background: linear-gradient(140deg, #2a1d5c, #0d0a1e); color: #fff; border-color: rgba(143,123,255,.4); }
 .slide:nth-child(3) .sn, .slide:nth-child(3) .st { color: #c9bfff; }
 :root[data-design="papier"] .slide { box-shadow: 3px 3px 0 var(--line); border-color: var(--line); }
+
+/* Sternen-Warp (ui/warp.ts) */
+.warp-layer { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 9999; pointer-events: none; transition: opacity .65s ease-out; }
+.warp-layer.out { opacity: 0; }

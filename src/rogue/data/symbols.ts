@@ -62,6 +62,14 @@ export const SYMBOLS: SymbolDef[] = [
   W({ id: 'supernova', name: T('Supernova', 'Supernova'), rarity: 'legendary', art: 'supernova', c1: '#f08a5a', c2: '#fff6d8',
     text: lv => T(`${v(lv, 18, 24, 32)} Schaden an ALLEN, du erleidest 4.`, `${v(lv, 18, 24, 32)} damage to ALL, you take 4.`), fire: (g, lv) => { g.dmg(v(lv, 18, 24, 32), { all: true }); g.hurtSelf(4); g.fx('shake', 2); } }),
 
+  W({ id: 'funke', name: T('Glutfunke', 'Ember Spark'), rarity: 'common', art: 'sonne', c1: '#e8704a', c2: '#ffd9a0',
+    text: lv => T(`${v(lv, 2, 3, 4)} + Hitze Schaden.`, `${v(lv, 2, 3, 4)} + heat damage.`), fire: (g, lv) => g.dmg(v(lv, 2, 3, 4) + g.heat) }),
+  W({ id: 'rammsporn', name: T('Rammsporn', 'Ram Spur'), rarity: 'rare', art: 'anker', c1: '#8fb0b8', c2: '#f0e6cc',
+    text: lv => T(`Schaden = ${v(lv, 50, 75, 100)} % deines Schilds.`, `Damage = ${v(lv, 50, 75, 100)} % of your shield.`), fire: (g, lv) => g.dmg(Math.floor(g.block * v(lv, 50, 75, 100) / 100)) }),
+  W({ id: 'fallout', name: T('Fallout', 'Fallout'), rarity: 'rare', art: 'nebel', c1: '#8cc05a', c2: '#eef6c8',
+    text: lv => T(`Schaden = ${v(lv, 2, 3, 4)} × Strahlung des Ziels.`, `Damage = ${v(lv, 2, 3, 4)} × target's radiation.`),
+    fire: (g, lv) => { const f = g.target && !g.target.dead ? g.target : g.foes.find(x => !x.dead); if (f) g.dmg(v(lv, 2, 3, 4) * f.rad, { foe: f }); } }),
+
   // =========================================================================================== Schilde
   SH({ id: 'schild', name: T('Schildgitter', 'Shield Grid'), rarity: 'common', art: 'schild', c1: '#6fa6a3', c2: '#e3efe6',
     text: lv => T(`${v(lv, 4, 6, 8)} Schild.`, `${v(lv, 4, 6, 8)} shield.`), fire: (g, lv) => g.gainBlock(v(lv, 4, 6, 8)) }),
@@ -127,6 +135,11 @@ export const SYMBOLS: SymbolDef[] = [
     fire: (g, lv) => { g.expose(v(lv, 1, 2, 2), true); g.dmg(v(lv, 2, 3, 5), { all: true }); } }),
   TE({ id: 'fabrik', name: T('Orbitalwerft', 'Orbital Shipyard'), rarity: 'epic', art: 'satellit', c1: '#b8916a', c2: '#f3e3c6',
     text: lv => T(`${v(lv, 2, 3, 4)} Schaden je bisherigem Dreh in diesem Zug.`, `${v(lv, 2, 3, 4)} damage per spin so far this turn.`), fire: (g, lv) => g.dmg(v(lv, 2, 3, 4) * g.spin) }),
+
+  TE({ id: 'glutherz', name: T('Glutherz', 'Ember Heart'), rarity: 'rare', art: 'supernova', c1: '#f07a4a', c2: '#ffe6b8',
+    text: lv => T(`+1 Hitze, dann Hitze × ${v(lv, 1, 1, 2)} Schaden an ALLEN.`, `+1 heat, then heat × ${v(lv, 1, 1, 2)} damage to ALL.`), fire: (g, lv) => { g.addHeat(1); g.dmg(g.heat * v(lv, 1, 1, 2) + (lv === 2 ? 2 : 0), { all: true }); } }),
+  TE({ id: 'zerfall', name: T('Zerfallskette', 'Decay Chain'), rarity: 'common', art: 'nebel', c1: '#b0c86a', c2: '#f4f8dc',
+    text: lv => T(`${v(lv, 1, 2, 2)} Strahlung an ALLEN, ${v(lv, 1, 1, 2)} Schaden.`, `${v(lv, 1, 2, 2)} radiation on ALL, ${v(lv, 1, 1, 2)} damage.`), fire: (g, lv) => { g.irradiate(v(lv, 1, 2, 2), true); g.dmg(v(lv, 1, 1, 2)); } }),
 
   // =========================================================================================== Kosmos
   KO({ id: 'stern', name: T('Leitstern', 'Guiding Star'), rarity: 'common', art: 'stern', c1: '#d6b46a', c2: '#fff4d2',

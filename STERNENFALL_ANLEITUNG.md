@@ -22,9 +22,11 @@ STERNENFALL ist ein **Slot-Reaktor-Deckbuilder**, eine Mischung aus *Slots & Dag
 | Aktion | Geste |
 |---|---|
 | Drehen | großer Messingknopf **Drehen** (zeigt die Hitzekosten) |
-| Walze halten | **Halten** unter der Walze (erst nach dem ersten Dreh; jede gehaltene Walze kostet +1 Hitze) |
+| Walze steuern | Knopf unter der Walze (ab dem 2. Dreh) wechselt **Frei → Halten → Schubsen**. Halten: Walze bleibt stehen. Schubsen: Walze rückt genau ein Feld weiter; das kleine Bild zeigt, welches Symbol unten einrückt. Beides kostet je +1 Hitze. |
 | Zug beenden | **Andocken**; danach handeln die Gegner |
 | Ziel wählen | Gegner antippen |
+| Konstellationen | Wappen oben am Reaktor antippen |
+| Gegner-Eigenschaften | Gegner lange drücken (rot = Stärke, grün = Schwäche) |
 | Details | Gegner, Karte oder Modul lange drücken bzw. antippen |
 | Walzen ansehen | ⚙-Knopf in der Kopfleiste |
 | Menü / Aufgeben | ☰ |
@@ -41,6 +43,28 @@ STERNENFALL ist ein **Slot-Reaktor-Deckbuilder**, eine Mischung aus *Slots & Dag
   - Zu Beginn jedes Zuges kühlt der Reaktor um 3 ab.
 - Schild verfällt am Zugende.
 - Gegner können Schrott in deine Walzen werfen, Walzen blockieren, dich verstrahlen und schwächen.
+
+## Taktik: Konstellationen, Startdecks, Gegner-Eigenschaften
+Jedes Symbol gehört zu einer von 8 **Konstellationen**. Mit 3, 5 oder 7 Symbolen einer Konstellation auf deinen Walzen erwachen ihre Stufen I, II und III:
+
+| Konstellation | Spielidee | Stufe III |
+|---|---|---|
+| Glutkern | Hitze macht Waffen stärker | Überladung trifft alle Gegner, statt dir zu schaden |
+| Bollwerk | Schild sammeln | Rammstoß am Zugende mit 40 % deines Schilds |
+| Schwarm | viele kleine Treffer | jeder Treffer gibt dir Schild |
+| Handelsgilde | Gold wird zu Schaden | 10 % Zinsen nach jedem Sieg |
+| Isotopen | Strahlung schaukelt sich auf | Strahlung wirkt doppelt |
+| Uhrwerk | Halten, Schubsen, mehr Drehs | Synergien ×3 |
+| Leerenzeichen | erst schwächen, dann zuschlagen | doppelter Schaden gegen geschwächte, verwundbare Gegner |
+| Himmelschor | Linien heilen | Kosmos-Symbole werden zu Jokern |
+
+- Manche Konstellationen arbeiten gegeneinander: Glut will Hitze, Kühlsymbole und Uhrwerk senken sie.
+- **Angebote** bevorzugen Konstellationen, die du schon sammelst.
+- **Startdeck:** Auf der Brücke wählst du den Kern deines Decks. Vier Decks sind sofort verfügbar, vier weitere schaltest du im Forschungslabor frei.
+- **Gegner-Eigenschaften:**
+  - Stärken (rot) kontern eine Konstellation. Beispiele: *Gepanzert* gegen den Schwarm, *Strahlungsfest* gegen die Isotopen, *Schildbrecher* gegen das Bollwerk.
+  - Schwächen (grün) belohnen eine Konstellation. Beispiele: *Spröde* für große Treffer, *Aufgebläht* für Flächenschaden, *Resonant* für Linien.
+  - Ein Deck, das nur eine Sache kann, scheitert deshalb an bestimmten Bossen. Gute Läufe mischen eine Haupt- mit einer Neben-Konstellation.
 
 ## Aufbau eines Laufs
 - Ein Lauf besteht aus 3 Sektoren, nach dem ersten Sieg aus 4 (dann mit dem Endsektor „Rand“ und dem Architekten).
@@ -74,6 +98,8 @@ Alles ist datengetrieben. Eine neue Datei ist nicht nötig, es reicht ein Eintra
 | **Begegnung** | `src/rogue/data/events_a.ts` / `events_b.ts` | `{ id, act (0 = überall), icon, title, text, options: [{ label, check?: { chance, raise }, win: [Outcome], lose?, winText, loseText }] }` |
 | **Story** | `src/rogue/data/story.ts` | `CHAPTERS` mit `unlock: 'start' \| 'visit:<sektor>' \| 'boss:<sektor>' \| 'win' \| 'final' \| 'runs:<n>'`; Figuren in `CAST` |
 | **Forschung / Schiffe** | `src/rogue/data/ships.ts` | `SHIPS`, `RESEARCH`, `MUTATORS` |
+| **Konstellation** | `src/rogue/data/constellations.ts` | `{ id, name, icon, color, idea, tiers[3], members[], starter[3], unlock? }`; Wirkung je Stufe in `reactor.ts` (`this.cl.<id> >= n`) |
+| **Gegner-Eigenschaft** | `src/rogue/data/traits.ts` | `TRAITS` (Text, gut/schlecht, kontert …) und `TRAITS_OF[gegner]`; Wirkung in `reactor.ts` (`this.has(f, id)`) |
 | **Erfolge / Tagesziele** | `src/rogue/meta.ts` | `ACHIEVEMENTS`, `GOALS` |
 
 **Balance:** Die Tabelle `BAL` in `src/rogue/reactor.ts` legt die Lebenspunkte und den Schaden je Gegnerstufe und Sektorstufe fest.
@@ -83,9 +109,8 @@ Nach Änderungen lässt man den Simulator laufen. Dazu im Dev-Browser (`npm run 
 const S = await import('/tools/sternenfall-sim.ts'); const r = await S.sim(300, { rand: true }); console.table(r.acts); r
 ```
 
-Der Simulator spielt Läufe ohne Shop, Rast und Begegnungen. Das sind Richtwerte für den Bot:
-- Akt 1 schafft er zu etwa 90 %.
-- Den ganzen Lauf mit 3 Sektoren gewinnt er zu etwa 35 %.
-- Gegen den Endboss gewinnt er zu etwa 30 %.
+Der Simulator spielt Läufe ohne Shop, Rast und Begegnungen. Optionen: `{ deck: 'glut', pick: 'build' }` hält die Konstellation, `pick: 'random'` nimmt irgendwas.
 
-Ein Mensch mit Shop und Rast schneidet deutlich besser ab.
+Ziel der Abstimmung: Zufällige Decks gewinnen einen Lauf mit 3 Sektoren selten (≈ 15 %), gut gebaute Decks deutlich öfter (≈ 20–40 %). Der Endboss ist eine echte Hürde.
+
+Ein Mensch mit Shop, Rast und gemischtem Deck schneidet besser ab als der Bot.

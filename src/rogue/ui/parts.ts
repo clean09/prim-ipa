@@ -6,26 +6,36 @@ import { SYM, TAG_INFO } from '../data/symbols';
 import { MOD } from '../data/modules';
 import { CAST, CHAPTERS } from '../data/story';
 import { SHIP } from '../data/ships';
+import { ARCH_OF, CONST, CONSTELLATIONS, THRESH, constCounts, nextThresh } from '../data/constellations';
 import { ornament, portraitSvg, shipSvg, symbolSvg } from '../art';
 import { REEL_MAX, rarityColor } from '../run';
 import { Run, SymInst } from '../types';
 
 export const tx = (t: [string, string]) => L(t[0], t[1]);
 const RAR = () => ({ common: L('Gewöhnlich', 'Common'), rare: L('Selten', 'Rare'), epic: L('Episch', 'Epic'), legendary: L('Legendär', 'Legendary') } as Record<string, string>);
-const roman = (n: number) => ['', 'I', 'II', 'III'][n] ?? String(n);
+export const roman = (n: number) => ['', 'I', 'II', 'III'][n] ?? String(n);
 
 /** Symbolkarte (Jugendstil: Bogenrahmen, Halo-Motiv, Namensband). */
-export function cardEl(id: string, lv = 1, opts: { big?: boolean; small?: boolean; price?: number } = {}) {
+export function cardEl(id: string, lv = 1, opts: { big?: boolean; small?: boolean; price?: number; run?: Run } = {}) {
   const d = SYM[id];
   const tag = TAG_INFO[d.tag];
+  const cs = ARCH_OF[id] ? CONST[ARCH_OF[id]] : null;
+  // Fortschritt der Konstellation, falls man diese Karte nimmt
+  let prog: HTMLElement | string = '';
+  if (cs && opts.run) {
+    const n = constCounts(opts.run)[cs.id] ?? 0, nt = nextThresh(n);
+    const up = nt !== null && n + 1 >= nt;
+    prog = h('div', { class: 'sc-prog' + (up ? ' up' : '') }, up ? `▲ ${tx(cs.name)} ${roman(THRESH.indexOf(nt!) + 1)}` : `${cs.icon} ${n}→${n + 1}${nt ? `/${nt}` : ''}`);
+  }
   const el = h('div', { class: `sc r-${d.rarity}${opts.big ? ' big' : ''}${opts.small ? ' small' : ''}${d.tag === 'fluch' ? ' junk' : ''}`, style: { '--rc': rarityColor(d.rarity), '--tc': tag.color } as any },
-    h('div', { class: 'sc-arch' }),
+    cs ? h('div', { class: 'sc-arch', style: { '--cc': cs.color } as any, title: tx(cs.name) }, cs.icon) : '',
     h('div', { class: 'sc-art', html: symbolSvg(d.art, d.c1, d.c2) }),
     h('div', { class: 'sc-tag', title: L(tag.de, tag.en) }, d.wild ? '✷' : tag.icon),
     lv > 1 ? h('div', { class: 'sc-lv' }, roman(lv)) : '',
     h('div', { class: 'sc-name' }, tx(d.name)),
     opts.small ? '' : h('div', { class: 'sc-text' }, tx(d.text(lv))),
-    opts.small ? '' : h('div', { class: 'sc-rar' }, d.tag === 'fluch' ? L('Schrott', 'Junk') : `${RAR()[d.rarity]} · ${L(tag.de, tag.en)}`),
+    opts.small ? '' : h('div', { class: 'sc-rar' }, d.tag === 'fluch' ? L('Schrott', 'Junk') : `${RAR()[d.rarity]} · ${L(tag.de, tag.en)}${cs ? ` · ${tx(cs.name)}` : ''}`),
+    prog,
     opts.price != null ? h('div', { class: 'sc-price' }, `${opts.price} ✦`) : '');
   return el;
 }
@@ -71,7 +81,22 @@ export function reelsView(run: Run, onPick?: (s: SymInst, reel: number) => void,
         return el;
       }))));
 }
-export function showReels(run: Run) { sheet(L('Deine Walzen', 'Your reels'), h('p', { class: 'muted small' }, L('Je weniger Symbole auf einer Walze, desto öfter erscheint jedes davon. Lange drücken = Details.', 'The fewer symbols on a reel, the more often each appears. Long-press = details.')), reelsView(run)); }
+export function showReels(run: Run) { sheet(L('Deine Walzen', 'Your reels'), constPanel(run), h('p', { class: 'muted small' }, L('Je weniger Symbole auf einer Walze, desto öfter erscheint jedes davon. Lange drücken = Details.', 'The fewer symbols on a reel, the more often each appears. Long-press = details.')), reelsView(run)); }
+
+/** Konstellationen: Fortschritt und Stufen (aktive zuerst). */
+export function constPanel(run: Run, onlyActive = false) {
+  const n = constCounts(run);
+  const list = [...CONSTELLATIONS].sort((a, b) => (n[b.id] ?? 0) - (n[a.id] ?? 0)).filter(c => !onlyActive || (n[c.id] ?? 0) > 0);
+  return h('div', { class: 'sf-consts' }, list.map(c => {
+    const k = n[c.id] ?? 0, tier = THRESH.filter(t => k >= t).length;
+    return h('div', { class: 'sf-const' + (tier ? ' on' : ''), style: { '--cc': c.color } as any },
+      h('div', { class: 'sf-consthead' }, h('span', { class: 'ic' }, c.icon), h('b', null, tx(c.name)), h('small', null, `${k} · ${tier ? roman(tier) : '–'}`)),
+      h('div', { class: 'sf-constbar' }, THRESH.map(t => h('i', { class: k >= t ? 'on' : '' }, String(t)))),
+      h('small', { class: 'sf-constidea' }, tx(c.idea)),
+      h('ol', null, c.tiers.map((t, i) => h('li', { class: tier > i ? 'on' : '' }, h('b', null, `${roman(i + 1)} (${THRESH[i]})`), ' ', tx(t)))));
+  }));
+}
+export function showConsts(run: Run) { sheet(L('Konstellationen', 'Constellations'), h('p', { class: 'muted small' }, L('Jedes Symbol gehört zu einer Konstellation. Mit 3 / 5 / 7 Symbolen einer Konstellation auf deinen Walzen erwachen ihre Stufen I / II / III. Manche vertragen sich nicht – Glut will Hitze, Uhrwerk kühlt.', 'Every symbol belongs to a constellation. With 3 / 5 / 7 symbols of one on your reels, its tiers I / II / III awaken. Some clash – Ember wants heat, Clockwork cools.')), constPanel(run)); }
 
 /** Walze wählen, auf die ein neues Symbol kommt. */
 export function chooseReel(run: Run, id: string): Promise<number | null> {

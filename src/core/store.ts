@@ -59,7 +59,7 @@ export interface GameStats {
 
 export interface Checkpoint { nextStart: number; count: number; lastPrime: number; updated: string }
 
-export const VERSION = '4.1';
+export const VERSION = '4.2';
 
 const DEFAULTS: Settings = {
   language: 'auto', threads: Math.max(1, navigator.hardwareConcurrency || 4), segment: 4_000_000,

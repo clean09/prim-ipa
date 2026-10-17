@@ -12,6 +12,7 @@ import { SpaceKind, spaceStyle } from '../ui/cosmos';
 import '../rogue/sternenfall.css';
 import { meta, nextGoal } from '../rogue/meta';
 import { loadRun } from '../rogue/run';
+import { warp } from '../ui/warp';
 
 interface Card { id: GameId; art: string; title: () => string; sub: () => string; space: [SpaceKind, number]; unit: () => string; wide?: boolean }
 const CARDS: Card[] = [
@@ -81,21 +82,35 @@ export function mountGames(root: HTMLElement) {
 
   // ---------------------------------------------------------------- PRIMFALL (Roguelike) als Hauptspiel
   const m = meta(), saved = loadRun(), goal = nextGoal();
-  const rogue = h('div', { class: 'pf-hero', onclick: () => { sfx.tap(); go('rogue'); } },
+  const rogue = h('div', { class: 'pf-hero', onclick: () => { sfx.tap(); warp(() => go('rogue')); } },
     h('div', { class: 'pf-bg' }, ...Array.from({ length: 14 }, (_, i) => h('span', { style: { '--i': String(i) } as any }, '✦✧⋆✶✷✵'[i % 6]))),
     h('div', { class: 'pf-k' }, L('Neu · Eine Sternensaga', 'New · a star saga')),
     h('div', { class: 'pf-logo' }, 'Sternenfall'),
-    h('p', null, L('Dein Schiff kämpft mit einem Sternenreaktor – einem Spielautomaten aus deinen Symbolen. Sechs Sektoren, zwölf Bosse, Aliens, eine Geschichte in Kapiteln und Wochen voller Neues.',
-      'Your ship fights with a star reactor – a slot machine made of your symbols. Six sectors, twelve bosses, aliens, a story in chapters and weeks of new things.')),
+    h('p', null, L('Dein Schiff kämpft mit einem Sternenreaktor – einem Spielautomaten aus deinen Symbolen. Baue Decks aus acht Konstellationen, lies die Stärken und Schwächen der Gegner, halte und schubse die Walzen. Sieben Sektoren, dreizehn Bosse, eine Geschichte in Kapiteln.',
+      'Your ship fights with a star reactor – a slot machine made of your symbols. Build decks from eight constellations, read enemy strengths and weaknesses, hold and nudge the reels. Seven sectors, thirteen bosses, a story in chapters.')),
     h('div', { class: 'pf-row' },
       h('div', null, h('b', null, `✧ ${N(m.staub)}`), h('small', null, L('Sternenstaub', 'Stardust'))),
       h('div', null, h('b', null, N(m.bestScore)), h('small', null, L('Rekord', 'Best'))),
       h('div', null, h('b', null, `${m.daily.goals.filter(g => g.done).length}/3`), h('small', null, L('Tagesziele', 'Daily goals')))),
     goal ? h('div', { class: 'pf-goal' }, h('small', null, `${L('Nächste Freischaltung', 'Next unlock')}: ${goal.label}`), h('div', null, h('i', { style: { width: `${Math.min(100, (m.staub / goal.cost) * 100)}%` } }))) : '',
     h('div', { class: 'pf-cta' }, saved ? L(`Flug fortsetzen · Akt ${saved.act}`, `Continue flight · act ${saved.act}`) : L('Abheben', 'Launch')));
-  const arcade = h('div', { class: 'sec-h' }, h('span', { class: 'n' }, '(B)'), h('h2', null, 'Arcade'), h('small', null, L('Kurze Runden', 'Quick rounds')));
-
-  root.append(h('div', { class: 'stack' }, rogue, arcade, player, daily, grid, achRow, world, tip));
+  // Zwei getrennte Welten: Sternenfall (Jugendstil-Portal) und Arcade (App-Stil) – nie beide gleichzeitig sichtbar
+  let tab = 'sf';
+  try { tab = localStorage.getItem('primsieb.gamesTab') === 'arcade' ? 'arcade' : 'sf'; } catch { /* privat */ }
+  const sfPane = h('div', { class: 'gx-pane gx-sf' }, rogue,
+    h('div', { class: 'pf-feats' }, [['✧', L('8 Konstellationen', '8 constellations')], ['⛊', L('Gegner mit Stärken & Schwächen', 'Enemies with strengths & weaknesses')], ['▲', L('Halten & Schubsen', 'Hold & nudge')], ['☾', L('Story in Kapiteln', 'Story in chapters')]].map(([i, t]) => h('div', null, h('b', null, i), h('span', null, t)))));
+  const arcadePane = h('div', { class: 'gx-pane gx-arcade' },
+    h('div', { class: 'gx-arcadehead' }, h('small', null, L('Spielhalle', 'Arcade hall')), h('h2', null, 'Arcade'), h('p', null, L('Kurze Runden rund um Primzahlen – für zwischendurch.', 'Quick rounds about primes – for in between.'))),
+    player, daily, grid, achRow, world, tip);
+  const segBtn = (id: string, label: string) => h('button', { class: tab === id ? 'on' : '', onclick: () => { if (tab === id) return; tab = id; try { localStorage.setItem('primsieb.gamesTab', id); } catch { /* egal */ } sfx.tap(); show(); } }, label);
+  const seg = h('div', { class: 'gx-seg' });
+  const holder = h('div');
+  const show = () => {
+    seg.innerHTML = ''; seg.append(segBtn('sf', 'Sternenfall'), segBtn('arcade', 'Arcade')); seg.dataset.on = tab;
+    holder.innerHTML = ''; holder.append(tab === 'sf' ? sfPane : arcadePane);
+  };
+  show();
+  root.append(h('div', { class: 'stack' }, seg, holder));
   return () => clearInterval(timer);
 }
 

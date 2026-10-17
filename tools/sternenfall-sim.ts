@@ -9,6 +9,7 @@ import { MOD } from '../src/rogue/data/modules';
 import { enterAct, lastAct, moduleOffer, newRun, runCtx, sectorOf, symbolOffer, addModule } from '../src/rogue/run';
 import { pick, rngOf } from '../src/rogue/rng';
 import { Run } from '../src/rogue/types';
+import { ARCH_OF, constCounts } from '../src/rogue/data/constellations';
 
 const RANK: Record<string, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
 type FightLog = { sector: string; kind: string; ids: string; won: boolean; turns: number; hpLost: number; dpt: number; spins: number };
@@ -31,7 +32,7 @@ async function playFight(run: Run, ids: string[], kind: 'fight' | 'elite' | 'bos
         const tags = c.grid.map(col => SYM[col[1].id]?.tag);
         for (let r = 0; r < 3; r++) if (tags.filter(t => t === tags[r]).length >= 2 && c.held.filter(Boolean).length < 1) c.held[r] = true;
       }
-      if (c.heat + c.spinHeat() > c.heatMax) { c.held = [false, false, false]; if (c.heat + c.spinHeat() > c.heatMax) break; }
+      if (c.heat + c.spinHeat() > c.heatMax && !(c.cl.glut >= 3)) { c.held = [false, false, false]; if (c.heat + c.spinHeat() > c.heatMax) break; }
       aim(); c.spinOnce(); await c.resolve();
     }
     if (!c.over) await c.endTurn();
@@ -41,16 +42,20 @@ async function playFight(run: Run, ids: string[], kind: 'fight' | 'elite' | 'bos
   return { won: c.over === 'win', turns: c.turn, hpLost: hp0 - Math.max(0, run.hp), dpt: dealt / c.turn, spins: run.stats.spins };
 }
 
-function reward(run: Run, kind: string) {
+/** pick: 'rar' = höchste Seltenheit, 'build' = bei der stärksten Konstellation bleiben, 'random' = irgendwas. */
+function reward(run: Run, kind: string, pickMode: string, focus?: string) {
   const ctx = runCtx(run);
   const offer = symbolOffer(run, 3, kind === 'boss' ? 60 : kind === 'elite' ? 15 : 0);
-  const best = [...offer].sort((a, b) => RANK[SYM[b].rarity] - RANK[SYM[a].rarity])[0];
+  const cnt = constCounts(run);
+  const top = focus ?? Object.entries(cnt).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const score = (id: string) => RANK[SYM[id].rarity] + (pickMode === 'build' && ARCH_OF[id] === top ? 5 : 0);
+  const best = pickMode === 'random' ? offer[Math.floor(rngOf(run)() * offer.length)] : [...offer].sort((a, b) => score(b) - score(a))[0];
   if (best) ctx.addSymbol(best);
   if (kind !== 'fight') { const m = moduleOffer(run, 1)[0]; if (m && !MOD[m].cursed) addModule(run, m); }
   ctx.gainGold(kind === 'boss' ? 75 : kind === 'elite' ? 35 : 18);
 }
 
-export async function sim(n = 100, o: { ship?: string; asc?: number; smart?: boolean; fights?: number; rand?: boolean } = {}) {
+export async function sim(n = 100, o: { ship?: string; asc?: number; smart?: boolean; fights?: number; rand?: boolean; deck?: string; pick?: string } = {}) {
   const backup = { ...localStorage };
   const logs: FightLog[] = [];
   const deaths: Record<string, number> = {};
@@ -59,7 +64,7 @@ export async function sim(n = 100, o: { ship?: string; asc?: number; smart?: boo
   const errs: string[] = [];
   try {
     for (let i = 0; i < n; i++) {
-      const run = newRun(o.ship ?? 'kreuzer', `SIM${i}`, o.asc ?? 0);
+      const run = newRun(o.ship ?? 'kreuzer', `SIM${i}`, o.asc ?? 0, { deck: o.deck });
       if (o.rand && !run.sectors.includes('rand')) run.sectors.push('rand');   // Endsektor erzwingen
       const r = rngOf(run);
       let dead = false;
@@ -75,7 +80,7 @@ export async function sim(n = 100, o: { ship?: string; asc?: number; smart?: boo
             const res = await playFight(run, ids, kind, o.smart ?? true);
             logs.push({ sector: sec.id, kind, ids: ids.join('+'), ...res });
             if (!res.won) { dead = true; deaths[ids.join('+')] = (deaths[ids.join('+')] ?? 0) + 1; break; }
-            reward(run, kind);
+            reward(run, kind, o.pick ?? 'rar', o.deck);
           }
           if (!dead) reached.push(act);
         }
