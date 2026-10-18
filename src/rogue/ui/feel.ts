@@ -5,6 +5,41 @@ import { Particles } from '../juice';
 const TAPPABLE = '.sf-btn, .sf-go, .sf-spin, .sf-endturn, .sf-hold, .sf-loadrow, .sf-mission, .sf-opt, .sf-modopt, .sf-node, .sf-foe, .sc, .sf-continue, .sf-tabs2 button, .sf-ib, .sf-mod, .sf-buy, .sf-chapter, .sf-cx, .sf-pickrow, .sf-subseg button, .sf-staub, .sf-crest';
 const TILT = '.sc, .sf-shipcard, .sf-mission, .sf-continue';
 
+/** Ersetzt „15 ✦“ / „+60✦“ / „120 ✧“ in Texten durch Münze bzw. Kristall (nur hinter Zahlen – Zierstern bleibt). */
+const NUM_ICON = /(\d[\d.,]*\s?)([✦✧])/;
+function iconize(root: Node) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const hits: Text[] = [];
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) if (NUM_ICON.test(n.nodeValue ?? '') && !(n.parentElement?.closest('svg, .sfc, .sfd, input, textarea'))) hits.push(n as Text);
+  for (const t of hits) {
+    const frag = document.createDocumentFragment();
+    let rest = t.nodeValue ?? '';
+    for (let m = rest.match(NUM_ICON); m && m.index != null; m = rest.match(NUM_ICON)) {
+      frag.append(rest.slice(0, m.index) + m[1]);
+      const i = document.createElement('i'); i.className = m[2] === '✦' ? 'sfc' : 'sfd'; frag.append(i);
+      rest = rest.slice(m.index + m[0].length);
+    }
+    frag.append(rest);
+    t.replaceWith(frag);
+  }
+}
+export function attachIcons(...roots: HTMLElement[]) {
+  // Nur geänderte Teile prüfen (Kampf ändert ständig Zahlen – ein Vollscan je Bild wäre teuer)
+  const pending = new Set<Node>();
+  let queued = false;
+  const flush = () => { queued = false; pending.forEach(n => { if (n.isConnected) iconize(n); }); pending.clear(); };
+  const mo = new MutationObserver(recs => {
+    for (const r of recs) {
+      if (r.type === 'characterData') { if (r.target.parentNode) pending.add(r.target.parentNode); }
+      else r.addedNodes.forEach(n => pending.add(n));
+    }
+    if (!queued && pending.size) { queued = true; requestAnimationFrame(flush); }
+  });
+  roots.forEach(r => { mo.observe(r, { childList: true, subtree: true, characterData: true }); iconize(r); });
+  mo.observe(document.body, { childList: true, subtree: false });
+  return () => mo.disconnect();
+}
+
 export function attachFeel(host: HTMLElement, particles: Particles) {
   const reduced = () => document.documentElement.dataset.motion === 'reduced';
   let tilted: HTMLElement | null = null;

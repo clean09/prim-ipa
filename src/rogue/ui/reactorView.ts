@@ -8,7 +8,7 @@ import { SHIP } from '../data/ships';
 import { BAL, LINES, Reactor, ReactorEvent } from '../reactor';
 import { Particles, bgmIntensity, flash, floatText, haptic, shake, slowmo, snd } from '../juice';
 import { enemySvg, shipSvg, symbolSvg } from '../art';
-import { discover, track, unlock } from '../meta';
+import { discover, meta, saveMeta, track, unlock } from '../meta';
 import { Foe, Intent, Run } from '../types';
 import { moduleEl, roman, showConsts, showReels, tx } from './parts';
 import { CONST } from '../data/constellations';
@@ -280,6 +280,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
     spinBtn.addEventListener('click', async () => {
       if (busy || !c.canSpin()) return;
       busy = true; renderStatus();
+      root.querySelector('.sf-coach')?.remove();
       const heldBefore = [...c.held], nudgeBefore = [...c.nudge], oldGrid = c.grid.map(col => [...col]);
       c.spinOnce();
       snd.spin();
@@ -291,9 +292,11 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       busy = false;
       renderReelsStatic(); renderFoes(); renderStatus();
       after();
+      if (!c.over && coachStep < 3) setTimeout(coachNext, 400);
     });
     endBtn.addEventListener('click', async () => {
       if (busy || c.over) return;
+      root.querySelector('.sf-coach')?.remove();
       busy = true; renderStatus();
       lastFire = null;
       turnBanner(L('Gegnerzug', 'Enemy turn'), 'foe');
@@ -305,6 +308,23 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       after();
     });
 
+    /** Lernhinweis im ersten Kampf: Sprechblase über einem Bedienelement, verschwindet beim Tippen. */
+    let coachStep = (meta() as any).coach ?? 0;
+    function coach(target: HTMLElement, text: string) {
+      root.querySelector('.sf-coach')?.remove();
+      const r = target.getBoundingClientRect(), hr = root.getBoundingClientRect();
+      const b = h('div', { class: 'sf-coach', style: { left: `${Math.max(12, Math.min(hr.width - 232, r.left - hr.left + r.width / 2 - 110))}px`, top: `${r.top - hr.top - 12}px`, '--ax': `${r.left - hr.left + r.width / 2 - Math.max(12, Math.min(hr.width - 232, r.left - hr.left + r.width / 2 - 110))}px` } as any }, h('span', null, text));
+      b.addEventListener('click', () => b.remove());
+      root.append(b);
+    }
+    function coachNext() {
+      if (coachStep >= 3) return;
+      const m = meta() as any;
+      if (coachStep === 0) coach(spinBtn, L('Tippe DREHEN – alle neun Symbole im Fenster feuern.', 'Tap SPIN – all nine symbols in the window fire.'));
+      else if (coachStep === 1) coach(holdRow, L('Halten oder Schubsen: Walzen gezielt stellen und Linien bauen (kostet Hitze).', 'Hold or nudge: set reels on purpose to build lines (costs heat).'));
+      else if (coachStep === 2) coach(endBtn, L('Andocken beendet den Zug – dann handeln die Gegner. Ihre Absicht siehst du über ihnen.', 'Dock ends your turn – then enemies act. You see their intent above them.'));
+      coachStep++; m.coach = coachStep; saveMeta();
+    }
     function turnBanner(text: string, who: 'me' | 'foe') {
       root.querySelector('.sf-turn')?.remove();
       const b = h('div', { class: 'sf-turn ' + who }, h('span', null, text));
@@ -345,6 +365,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       const close = () => { if (!card.isConnected) return; card.classList.add('out'); setTimeout(() => card.remove(), 500); busy = false; renderStatus(); };
       card.addEventListener('click', close); setTimeout(close, 3200);
     } else turnBanner(L('Kampf!', 'Fight!'), 'me');
+    if (coachStep === 0 && kind !== 'boss') setTimeout(coachNext, 1400);
   });
 }
 

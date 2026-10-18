@@ -135,7 +135,7 @@ export class Sky {
       const sc = Math.max(w / im.naturalWidth, h / im.naturalHeight) * z;
       const iw = im.naturalWidth * sc, ih = im.naturalHeight * sc;
       const ox = (w - iw) / 2 + Math.sin(t * 0.031) * w * 0.03, oy = (h - ih) / 2 + Math.cos(t * 0.027) * h * 0.02;
-      ctx.globalAlpha = this.mood === 'lost' ? 0.3 : this.mood === 'fight' || this.mood === 'boss' || this.mood === 'elite' ? 0.5 : 0.62;
+      ctx.globalAlpha = this.mood === 'lost' ? 0.3 : this.mood === 'fight' || this.mood === 'boss' || this.mood === 'elite' ? 0.5 : this.mood === 'map' || this.mood === 'hub' || this.mood === 'won' ? 0.62 : 0.34;
       ctx.drawImage(im, ox, oy, iw, ih);
       ctx.globalAlpha = 1;
     }
@@ -193,7 +193,7 @@ export class Sky {
     else if (this.mood === 'casino') vign([90, 20, 70], 0.4);
     else if (this.mood === 'lost') { vign([0, 0, 0], 0.6); ctx.fillStyle = 'rgba(20,16,24,.25)'; ctx.fillRect(0, 0, w, h); }
     else if (this.mood === 'won') vign([200, 150, 60], 0.25);
-    else vign([0, 0, 0], 0.45);
+    else vign([0, 0, 0], this.mood === 'map' || this.mood === 'hub' ? 0.45 : 0.62);
   }
 
   private aurora() {

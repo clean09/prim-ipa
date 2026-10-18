@@ -33,8 +33,8 @@ export function cardEl(id: string, lv = 1, opts: { big?: boolean; small?: boolea
     h('div', { class: 'sc-tag', title: L(tag.de, tag.en) }, d.wild ? '✷' : tag.icon),
     lv > 1 ? h('div', { class: 'sc-lv' }, roman(lv)) : '',
     h('div', { class: 'sc-name' }, tx(d.name)),
-    opts.small ? '' : h('div', { class: 'sc-text' }, tx(d.text(lv))),
-    opts.small ? '' : h('div', { class: 'sc-rar' }, d.tag === 'fluch' ? L('Schrott', 'Junk') : `${RAR()[d.rarity]} · ${L(tag.de, tag.en)}${cs ? ` · ${tx(cs.name)}` : ''}`),
+    opts.small ? '' : h('div', { class: 'sc-text' + (tx(d.text(lv)).length > 38 ? ' long' : '') }, tx(d.text(lv))),
+    !opts.big ? '' : h('div', { class: 'sc-rar' }, d.tag === 'fluch' ? L('Schrott', 'Junk') : `${RAR()[d.rarity]} · ${L(tag.de, tag.en)}${cs ? ` · ${tx(cs.name)}` : ''}`),
     prog,
     opts.price != null ? h('div', { class: 'sc-price' }, `${opts.price} `, h('i', { class: 'sfc' })) : '');
   return el;
@@ -130,13 +130,21 @@ export function playChapter(chId: string): Promise<void> {
     const wrap = h('div', { class: 'sf-story' });
     const title = h('div', { class: 'sf-stitle' }, h('small', null, L('Logbuch', 'Logbook')), h('b', null, tx(ch.title)), h('div', { html: ornament(220) }));
     const box = h('div', { class: 'sf-sbox' });
+    const stage = h('div', { class: 'sf-sstage' });
     const btn = h('button', { class: 'sf-btn gold' }, L('Weiter', 'Next'));
-    wrap.append(title, box, btn);
+    wrap.append(title, stage, box, btn);
+    let shownWho = '';
     document.body.append(wrap);
     let i = 0, typing = 0, full = '';
     const textEl = () => box.querySelector('.sf-line p') as HTMLElement | null;
     const show = () => {
       const line = ch.lines[i]; const c = CAST[line.who];
+      if (line.who !== shownWho) {                // Sprecherwechsel: großes Porträt überblenden
+        shownWho = line.who;
+        stage.querySelector('.sf-bigp')?.classList.add('out');
+        const big = h('div', { class: 'sf-bigp', style: { '--hue': String(c?.hue ?? 40) } as any, html: portraitSvg(c?.portrait ?? line.who) });
+        stage.append(big); setTimeout(() => stage.querySelectorAll('.sf-bigp.out').forEach(x => x.remove()), 600);
+      }
       box.innerHTML = '';
       box.append(h('div', { class: 'sf-line' }, portrait(line.who), h('div', null, h('b', { style: { color: `hsl(${c?.hue ?? 40} 60% 72%)` } }, c ? tx(c.name) : ''), h('small', null, c ? tx(c.role) : ''), h('p'))));
       full = tx(line.text); let k = 0;

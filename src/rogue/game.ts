@@ -13,7 +13,7 @@ import { CONSTELLATIONS } from './data/constellations';
 import { CREDITS } from './data/credits';
 import { Mood, Sky } from './sky';
 import { warp } from '../ui/warp';
-import { attachFeel } from './ui/feel';
+import { attachFeel, attachIcons } from './ui/feel';
 import { showSettings } from './ui/settingsView';
 import { onSfs } from './settings';
 
@@ -62,6 +62,7 @@ export class Game {
     host.append(this.sky.el, this.view, canvas);
     this.particles = new Particles(canvas);
     this.offs.push(attachFeel(host, this.particles));
+    this.offs.push(attachIcons(host));
     this.offs.push(onSfs(() => this.sky.start()));   // Grafikstufe gewechselt → Himmel neu anstoßen
     this.offs.push(onAchievement(a => this.banner(`${a.icon} ${tx(a.name)}`, `+${a.staub} ✧ · ${tx(a.text)}`)));
     this.offs.push(onGoal(g => this.banner(L('Tagesziel geschafft!', 'Daily goal done!'), `${tx(g.text)} · +${g.staub} ✧`)));
@@ -75,6 +76,7 @@ export class Game {
 
   private clear(cls = '', bg?: [string, string], theme?: string) {
     this.view.innerHTML = ''; this.view.className = 'sf-view ' + cls; this.view.scrollTop = 0;
+    const v = this.view, mark = v.className; setTimeout(() => { if (v.className === mark) v.classList.add('settled'); }, 800);   // Einblenden nur beim Ansichtswechsel
     // Lebender Himmel: Sektor-Thema + Stimmung der Station
     const sec = this.run ? SECTOR[sectorOf(this.run)] : null;
     const word = cls.split(' ')[0];
@@ -440,7 +442,7 @@ export class Game {
       }
       if (!symTaken) {
         const cost = rerollCost(run);
-        box.append(h('div', { class: 'sf-sec' }, L('Neues Symbol für deinen Reaktor', 'A new symbol for your reactor')));
+        box.append(h('div', { class: 'sf-sec' }, L('Neues Symbol', 'New symbol')));
         const row = h('div', { class: 'sf-pick' });
         offer.forEach((id, i) => {
           const el = cardEl(id, 1, { run }); el.classList.add('reveal'); el.style.setProperty('--i', String(i));
@@ -649,7 +651,7 @@ export class Game {
           h('span', null, '✦✦✦ JACKPOT ×30'), h('span', null, '☾☾☾ ×15'), h('span', null, '♛♛♛ ×10'), h('span', null, L('Drei gleiche ×5', 'Three alike ×5')), h('span', null, L('Paar ×1,5', 'Pair ×1.5')))),
         h('div', { class: 'row' }, [10, 25, 50].map(b => h('button', { class: 'sf-btn', disabled: run.gold < b || spins >= 8, onclick: () => this.spin(reels, b, () => { spins++; last = reels.map(rl => rl.querySelector('.strip')!.lastElementChild?.textContent ?? '✦'); render(); }) }, `${b} ✦`))),
         spins >= 8 ? h('small', { class: 'muted' }, L('Sola-Nn: „Genug für heute, Schätzchen.“', 'Sola-Nn: “Enough for today, darling.”')) : '',
-        h('div', { class: 'sf-sec' }, L('Kometenwürfel: Über / Unter 7', 'Comet dice: over / under 7')),
+        h('div', { class: 'sf-sec' }, L('Kometenwürfel', 'Comet dice')),
         h('div', { class: 'row' },
           h('button', { class: 'sf-btn', disabled: run.gold < 20, onclick: () => this.dice('under', 20, render) }, L('Unter 7 · ×2', 'Under 7 · ×2')),
           h('button', { class: 'sf-btn risk', disabled: run.gold < 20, onclick: () => this.dice('seven', 20, render) }, L('Genau 7 · ×5', 'Exactly 7 · ×5')),
@@ -740,13 +742,14 @@ export class Game {
     this.view.append(this.top(),
       h('div', { class: 'sf-npc' }, portrait('brakk'), h('div', null, h('b', null, tx(CAST.brakk.name)), h('p', null, L('„Eine Sache. Ich hab vier Hände, aber nur Zeit für eine Sache.“', '“One thing. I have four hands, but only time for one thing.”')))), box);
     box.append(
-      h('button', { class: 'sf-opt', onclick: () => { runCtx(run).heal(heal); snd.win(); this.done(); } }, h('b', null, L('Hülle reparieren', 'Repair hull')), h('small', null, `+${heal} ⛨`)),
-      h('button', { class: 'sf-opt', onclick: async () => { if (await this.upgradeSym(true)) this.done(); } }, h('b', null, L('Symbol aufwerten', 'Upgrade a symbol')), h('small', null, L('Eine Stufe höher (I → II → III), gratis', 'One level up (I → II → III), free'))),
+      h('div', { class: 'sf-evhead' }, h('div', { class: 'ic' }, '⚙'), h('h2', null, L('Brakks Station', 'Brakk’s Station')), h('div', { html: ornament(220) })),
+      h('button', { class: 'sf-opt', onclick: () => { runCtx(run).heal(heal); snd.win(); this.done(); } }, h('b', null, `⛨ ${L('Hülle reparieren', 'Repair hull')}`), h('small', null, `+${heal} ${L('Hülle', 'hull')} (${run.hp} → ${Math.min(run.maxHp, run.hp + heal)})`)),
+      h('button', { class: 'sf-opt', onclick: async () => { if (await this.upgradeSym(true)) this.done(); } }, h('b', null, `▲ ${L('Symbol aufwerten', 'Upgrade a symbol')}`), h('small', null, L('Eine Stufe höher (I → II → III), gratis', 'One level up (I → II → III), free'))),
       h('button', { class: 'sf-opt check', onclick: () => this.rollCheck(0.5 + run.luck, won => {
         if (won) { run.maxHp += 8; run.hp = run.maxHp; toast(L('Brakks Experiment glückt: +8 max. Hülle, voll repariert!', 'Brakk’s experiment works: +8 max hull, fully repaired!')); }
         else { runCtx(run).addSymbol('parasit'); toast(L('Ein Reaktorparasit nistet sich ein …', 'A reactor parasite moves in …')); }
         this.done();
-      }) }, h('b', null, L('Brakks Experiment (Risiko)', 'Brakk’s experiment (risk)')), h('small', null, L('50 %: +8 max. Hülle und volle Reparatur · 50 %: Reaktorparasit', '50 %: +8 max hull and full repair · 50 %: reactor parasite'))));
+      }) }, h('b', null, `⚗ ${L('Brakks Experiment (Risiko)', 'Brakk’s experiment (risk)')}`), h('small', null, L('50 %: +8 max. Hülle und volle Reparatur · 50 %: Reaktorparasit', '50 %: +8 max hull and full repair · 50 %: reactor parasite'))));
   }
 
   // =========================================================================================== Wrack

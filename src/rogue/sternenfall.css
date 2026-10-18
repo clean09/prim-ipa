@@ -695,3 +695,42 @@ button.sf-crest { margin: 0 0 8px; min-height: 20px; color: var(--gold2); }
 .sf-pickrow.on { box-shadow: none; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--cc, #e8c070) 60%, transparent)); }
 /* Überstand braucht Luft: Abstände zwischen gerahmten Feldern */
 .sf-goals, .sf-hist, .sf-pickl, .sf-loadout { gap: 16px; } .sf-missions, .sf-achs, .sf-stats { gap: 18px; }
+
+/* ------------------------------------------------------------------ Polish */
+/* Karten: Text darf die freie Höhe nutzen, lange Texte etwas kleiner */
+.sc-text { margin-top: 5px; }
+.sc-text.long { font-size: calc(var(--card-w) * .076); line-height: 1.2; }
+/* Abstand zwischen gerahmten Feldern, damit die Schleifen nicht ineinander greifen */
+.sf-panel { gap: 18px; }
+/* Casino-Automat: Emaille in Pflaume mit Goldfassung statt Rostmessing */
+.sf-slot { background: radial-gradient(120% 70% at 50% 0%, rgba(232,192,112,.16), transparent 60%), repeating-linear-gradient(90deg, rgba(255,255,255,.02) 0 1px, transparent 1px 4px), linear-gradient(180deg, #4a1838, #2a0c22 55%, #14060f);
+  border-radius: 60px 60px 12px 12px / 34px 34px 12px 12px; box-shadow: 0 0 0 1.5px #e0b860, 0 0 0 4px #0b0a14, 0 0 0 5px rgba(201,164,92,.55), 0 0 30px rgba(220,90,160,.25), 0 14px 30px rgba(0,0,0,.6); }
+.sf-creel { border-radius: 8px; box-shadow: 0 0 0 1.5px #e0b860, inset 0 8px 14px rgba(0,0,0,.35), inset 0 -8px 14px rgba(0,0,0,.35); }
+.sf-paytable span { background: rgba(0,0,0,.35); border: 1px solid rgba(232,192,112,.25); }
+.sf-view.casino .sf-note, .sf-view.casino small.muted, .sf-view .sf-dicehint { color: #e6d8ba; text-shadow: 0 1px 2px #000; }
+/* Geschichte: großes Sprecherporträt im Bogen mit Heiligenschein */
+.sf-sstage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; }
+.sf-bigp { position: absolute; width: min(56vw, 230px); aspect-ratio: 100 / 120; border-radius: 120px 120px 10px 10px; overflow: hidden;
+  box-shadow: 0 0 0 2px #0b0a14, 0 0 0 3px #e0b860, 0 0 0 7px #0b0a14, 0 0 0 8px rgba(201,164,92,.5), 0 0 60px hsla(var(--hue), 70%, 60%, .35), 0 24px 50px rgba(0,0,0,.6);
+  animation: sfbigp .7s cubic-bezier(.2,1,.3,1) both, sffloat 5s ease-in-out .7s infinite; transition: opacity .5s, transform .5s; }
+.sf-bigp svg { width: 100%; height: 100%; display: block; }
+.sf-bigp.out { opacity: 0; transform: scale(.94) translateY(10px); }
+@keyframes sfbigp { from { opacity: 0; transform: translateY(24px) scale(.92); filter: brightness(2); } }
+.sf-stitle { margin-bottom: 0; }
+@media (max-height: 700px) { .sf-bigp { width: min(40vw, 150px); } }
+/* Lernhinweis (erster Kampf) */
+.sf-coach { position: absolute; z-index: 55; width: 220px; transform: translateY(-100%); padding: 10px 12px; border-radius: 10px; cursor: pointer;
+  background: linear-gradient(180deg, #f6ead0, #e2cfa4); color: #2a1c0c; font: italic 14px/1.4 var(--serif); box-shadow: 0 0 0 1px #8a6a30, 0 10px 26px rgba(0,0,0,.55);
+  animation: sfcoach .5s cubic-bezier(.2,1.4,.4,1) both, sfbob2b 2.4s ease-in-out .5s infinite; }
+.sf-coach::after { content: ""; position: absolute; left: calc(var(--ax) - 8px); bottom: -8px; border: 8px solid transparent; border-bottom: 0; border-top-color: #e2cfa4; }
+@keyframes sfcoach { from { opacity: 0; transform: translateY(calc(-100% + 12px)) scale(.9); } }
+@keyframes sfbob2b { 50% { margin-top: -4px; } }
+/* Ansichtswechsel: Inhalte gleiten gestaffelt herein */
+.sf-view:not(.fight) > * { animation: sfin .55s cubic-bezier(.2,1,.3,1) both; }
+.sf-view:not(.fight) > :nth-child(2) { animation-delay: .05s; } .sf-view:not(.fight) > :nth-child(3) { animation-delay: .1s; } .sf-view:not(.fight) > :nth-child(4) { animation-delay: .15s; }
+.sf-view:not(.fight) > :nth-child(5) { animation-delay: .2s; } .sf-view:not(.fight) > :nth-child(n+6) { animation-delay: .25s; }
+.sf-panel > * { animation: sfin .5s cubic-bezier(.2,1,.3,1) both; } .sf-panel > :nth-child(2) { animation-delay: .08s; } .sf-panel > :nth-child(3) { animation-delay: .14s; } .sf-panel > :nth-child(n+4) { animation-delay: .2s; }
+@keyframes sfin { from { opacity: 0; transform: translateY(14px); } }
+.sf-view > .sf-top { animation: none; }
+[data-motion="reduced"] .sf-view > *, [data-motion="reduced"] .sf-panel > * { animation: none !important; }
+.sf-view.settled .sf-panel > *, .sf-view.settled > * { animation: none; }
