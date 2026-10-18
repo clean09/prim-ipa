@@ -2,6 +2,8 @@
 // Pulsar, Ereignishorizont, Kern, Rand), Stimmung = Lage (Karte, Kampf, Boss, Casino, Basar, Rast, Sieg, Niederlage …).
 // Canvas 2D, ~30 Bilder/s, pausiert im Hintergrund; bei Bewegung „Aus“ nur ein ruhendes Bild.
 
+import { sfs } from './settings';
+
 export type Mood = 'hub' | 'map' | 'fight' | 'elite' | 'boss' | 'reward' | 'event' | 'shop' | 'casino' | 'rest' | 'chest' | 'won' | 'lost';
 type RGB = [number, number, number];
 
@@ -14,6 +16,16 @@ const THEME: Record<string, { neb: RGB[]; star: RGB }> = {
   kern: { neb: [[170, 80, 50], [120, 40, 40], [190, 130, 70]], star: [255, 230, 190] },
   rand: { neb: [[40, 60, 90], [60, 50, 90], [30, 90, 100]], star: [200, 230, 240] },
 };
+/** Getönte NASA-Aufnahme je Thema (public/sf/img, siehe tools/sf_assets.py). */
+const PHOTO: Record<string, string> = { asteroiden: 'guertel', eis: 'frost', nebel: 'orion', pulsar: 'pulsar', horizont: 'horizont', kern: 'kern', rand: 'rand', hub: 'hub' };
+const photos = new Map<string, HTMLImageElement>();
+function photo(key: string, onload: () => void) {
+  let im = photos.get(key);
+  if (!im) { im = new Image(); im.decoding = 'async'; im.src = `${import.meta.env.BASE_URL}sf/img/sky_${key}.jpg`; photos.set(key, im); }
+  if (im.complete && im.naturalWidth) return im;
+  im.addEventListener('load', onload, { once: true });
+  return null;
+}
 const rgba = (c: RGB, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
 export class Sky {
@@ -27,7 +39,8 @@ export class Sky {
   private bits: { x: number; y: number; vx: number; vy: number; r: number; rot: number; vr: number; life: number; kind: number; seed: number }[] = [];
   private comets: { x: number; y: number; vx: number; vy: number; life: number }[] = [];
   private raf = 0; private last = 0; private t = 0; private running = false;
-  private still = document.documentElement.dataset.motion === 'reduced';
+  private img: HTMLImageElement | null = null;
+  private get still() { return document.documentElement.dataset.motion === 'reduced' || sfs().gfx === 'low'; }
 
   constructor() {
     this.el = document.createElement('canvas');
@@ -46,7 +59,8 @@ export class Sky {
 
   /** Thema/Stimmung setzen (bei jedem Ansichtswechsel). */
   set(theme: string, mood: Mood, bg?: [string, string]) {
-    const changed = theme !== this.theme || (bg && (bg[0] !== this.bg[0] || bg[1] !== this.bg[1]));
+    const photoChanged = (mood === 'hub') !== (this.mood === 'hub');   // Brücke hat ein eigenes Bild
+    const changed = photoChanged || theme !== this.theme || (bg && (bg[0] !== this.bg[0] || bg[1] !== this.bg[1]));
     this.theme = THEME[theme] ? theme : 'rand'; this.mood = mood; if (bg) this.bg = bg;
     if (!this.w) this.resize(); else if (changed) this.build();
     else this.seedBits();
@@ -59,6 +73,8 @@ export class Sky {
   // ------------------------------------------------------------------------------------------- Aufbau
   private build() {
     const { w, h } = this, th = THEME[this.theme];
+    const key = this.mood === 'hub' ? 'hub' : PHOTO[this.theme];
+    this.img = key ? photo(key, () => { if (PHOTO[this.theme] === key || (this.mood === 'hub' && key === 'hub')) { this.img = photos.get(key)!; if (this.still) this.start(); } }) : null;
     // Grundverlauf einmal vorrendern
     const b = document.createElement('canvas'); b.width = this.el.width; b.height = this.el.height;
     const g = b.getContext('2d')!; g.scale(this.dpr, this.dpr);
@@ -113,6 +129,16 @@ export class Sky {
     const { ctx, w, h, t } = this, th = THEME[this.theme];
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     if (this.base) ctx.drawImage(this.base, 0, 0, w, h); else { ctx.fillStyle = '#07060f'; ctx.fillRect(0, 0, w, h); }
+    // Getönte Aufnahme, langsame Kamerafahrt (Ken Burns)
+    if (this.img) {
+      const im = this.img, z = 1.08 + 0.04 * Math.sin(t * 0.045);
+      const sc = Math.max(w / im.naturalWidth, h / im.naturalHeight) * z;
+      const iw = im.naturalWidth * sc, ih = im.naturalHeight * sc;
+      const ox = (w - iw) / 2 + Math.sin(t * 0.031) * w * 0.03, oy = (h - ih) / 2 + Math.cos(t * 0.027) * h * 0.02;
+      ctx.globalAlpha = this.mood === 'lost' ? 0.3 : this.mood === 'fight' || this.mood === 'boss' || this.mood === 'elite' ? 0.5 : 0.62;
+      ctx.drawImage(im, ox, oy, iw, ih);
+      ctx.globalAlpha = 1;
+    }
 
     // Nebel (additiv)
     ctx.globalCompositeOperation = 'lighter';
@@ -128,14 +154,14 @@ export class Sky {
     // Themenbühne hinter den Sternen
     if (this.theme === 'eis') this.aurora();
     if (this.theme === 'pulsar') this.pulsar();
-    if (this.theme === 'horizont') this.blackHole();
+    if (this.theme === 'horizont' && !this.img) this.blackHole();
     if (this.theme === 'kern') { const g = ctx.createRadialGradient(w / 2, h * 1.15, 0, w / 2, h * 1.15, h * 0.9); g.addColorStop(0, `rgba(255,160,80,${0.2 + 0.06 * Math.sin(t * 1.7)})`); g.addColorStop(1, 'rgba(255,120,60,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
 
     // Sterne (Parallaxe-Drift, Funkeln; am Rand verlöschen sie)
     const drift = this.mood === 'map' ? 3 : 6;
     for (const s of this.stars) {
       s.x -= drift * (0.2 + s.z) * dt;
-      if (this.theme === 'horizont') { const dx = s.x - w * 0.7, dy = s.y - h * 0.4; const d = Math.hypot(dx, dy) || 1; s.x -= (dx / d) * 6 * dt + (dy / d) * 10 * dt; s.y -= (dy / d) * 6 * dt - (dx / d) * 10 * dt; if (d < 30) { s.x = Math.random() * w; s.y = Math.random() * h; } }
+      if (this.theme === 'horizont') { const dx = s.x - w * (this.img ? 0.5 : 0.7), dy = s.y - h * (this.img ? 0.5 : 0.4); const d = Math.hypot(dx, dy) || 1; s.x -= (dx / d) * 6 * dt + (dy / d) * 10 * dt; s.y -= (dy / d) * 6 * dt - (dx / d) * 10 * dt; if (d < 30) { s.x = Math.random() * w; s.y = Math.random() * h; } }
       if (s.x < 0) s.x += w;
       let a = (0.25 + s.z * 0.75) * (0.6 + 0.4 * Math.sin(t * (1 + s.z * 2) + s.tw));
       if (this.theme === 'rand') { if (s.dead == null && Math.random() < 0.0008) s.dead = 1; if (s.dead != null) { s.dead -= dt * 0.5; a *= Math.max(0, s.dead); if (s.dead <= -2) { s.dead = undefined; s.x = Math.random() * w; } } }

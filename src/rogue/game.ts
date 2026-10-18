@@ -10,13 +10,17 @@ import { EVENTS } from './data/events';
 import { MUTATORS, RESEARCH, SHIP, SHIPS } from './data/ships';
 import { CAST, CHAPTERS } from './data/story';
 import { CONSTELLATIONS } from './data/constellations';
+import { CREDITS } from './data/credits';
 import { Mood, Sky } from './sky';
 import { warp } from '../ui/warp';
+import { attachFeel } from './ui/feel';
+import { showSettings } from './ui/settingsView';
+import { onSfs } from './settings';
 
 /** Abheben mit Sternen-Warp. */
 const warpGo = (f: () => void) => warp(f, { ms: 1000 });
 import { goldFor } from './reactor';
-import { Particles, countUp, flash, haptic, music, shake, snd } from './juice';
+import { Particles, bgm, countUp, flash, haptic, shake, snd, sting } from './juice';
 import {
   ACHIEVEMENTS, GOALS, canResearch, discover, packUnlocked, finishRun, level, meta, nextGoal, onAchievement, onChapter, onGoal, research, researchProgress,
   saveMeta, shipUnlocked, story, track, unlock, weekKey,
@@ -29,7 +33,7 @@ import {
 import { EventDef, EventOption, MapNode, Run } from './types';
 import { NODE_ICON, NODE_NAME, cardEl, cardPreview, chooseReel, longPress, pickSymbol, playChapter, portrait, showConsts, showReels, topBar, tx } from './ui/parts';
 import { rules, runFight } from './ui/reactorView';
-import { enemySvg, ornament, sectorPattern, shipSvg, symbolSvg } from './art';
+import { coinIcon, cornerOrn, dustIcon, enemySvg, frameImg, vineRule, ornament, sectorPattern, shipSvg, symbolSvg } from './art';
 
 export class Game {
   run: Run | null = null;
@@ -44,11 +48,21 @@ export class Game {
 
   constructor(readonly host: HTMLElement, readonly exit: () => void) {
     host.classList.add('sf');
+    document.documentElement.style.setProperty('--sf-coin', coinIcon());
+    document.documentElement.style.setProperty('--sf-dust', dustIcon());
+    // Jugendstil-Ranken für Ecken und Abschnittsköpfe (auch für Blätter außerhalb des Spielbereichs)
+    const ds = document.documentElement.style;
+    (['tl', 'tr', 'bl', 'br'] as const).forEach(c => ds.setProperty(`--orn-${c}`, cornerOrn(c)));
+    ds.setProperty('--sf-frame', frameImg('gold', 'a')); ds.setProperty('--sf-frame-b', frameImg('gold', 'b')); ds.setProperty('--sf-frame-ink', frameImg('ink', 'a'));
+    ds.setProperty('--vine-l', vineRule()); ds.setProperty('--vine-r', vineRule('#c9a45c', true));
+    document.body.classList.add('sf-on');
     const canvas = h('canvas', { class: 'sf-particles' });
     this.view = h('div', { class: 'sf-view' });
     host.classList.add('sky-on');
     host.append(this.sky.el, this.view, canvas);
     this.particles = new Particles(canvas);
+    this.offs.push(attachFeel(host, this.particles));
+    this.offs.push(onSfs(() => this.sky.start()));   // Grafikstufe gewechselt → Himmel neu anstoßen
     this.offs.push(onAchievement(a => this.banner(`${a.icon} ${tx(a.name)}`, `+${a.staub} ✧ · ${tx(a.text)}`)));
     this.offs.push(onGoal(g => this.banner(L('Tagesziel geschafft!', 'Daily goal done!'), `${tx(g.text)} · +${g.staub} ✧`)));
     this.offs.push(onChapter(id => this.storyQueue.push(id)));
@@ -57,7 +71,7 @@ export class Game {
     void this.flushStory().then(() => this.hub());
     if (import.meta.env.DEV) (window as any).__sf = this;
   }
-  dispose() { this.offs.forEach(f => f()); this.particles.stop(); this.sky.dispose(); music(false); }
+  dispose() { document.body.classList.remove('sf-on'); this.offs.forEach(f => f()); this.particles.stop(); this.sky.dispose(); bgm(null); }
 
   private clear(cls = '', bg?: [string, string], theme?: string) {
     this.view.innerHTML = ''; this.view.className = 'sf-view ' + cls; this.view.scrollTop = 0;
@@ -65,6 +79,10 @@ export class Game {
     const sec = this.run ? SECTOR[sectorOf(this.run)] : null;
     const word = cls.split(' ')[0];
     const mood: Mood = (['hub', 'map', 'fight', 'reward', 'event', 'shop', 'casino', 'rest', 'chest'].includes(word) ? word : word === 'result' ? (cls.includes('won') ? 'won' : 'lost') : 'map') as Mood;
+    // Musik je Lage (Kampf wählt selbst, Ergebnis spielt einen Jingle)
+    const mapTrack = ({ guertel: 'map', frost: 'map_frost', orion: 'map_orion', pulsar: 'map_pulsar', horizont: 'map_horizont', kern: 'map_pulsar', rand: 'event' } as const)[(sec?.id ?? 'guertel') as 'guertel'] ?? 'map';
+    const track = ({ hub: 'hub', map: mapTrack, event: 'event', rest: 'event', chest: 'event', reward: mapTrack, shop: 'casino', casino: 'casino' } as const)[word as 'hub'];
+    if (track) bgm(track);
     if (word !== 'fight') this.sky.set(word === 'hub' ? 'rand' : theme && word === 'map' ? theme : sec?.theme ?? 'rand', mood, word === 'hub' ? undefined : bg ?? sec?.bg);
     if (bg) { this.view.style.setProperty('--bg1', bg[0]); this.view.style.setProperty('--bg2', bg[1]); this.view.style.setProperty('--pat', sectorPattern(theme ?? 'x', '#c9a45c')); }
   }
@@ -83,7 +101,6 @@ export class Game {
   // =========================================================================================== Brücke (Hub)
   hub(tab: 'play' | 'lab' | 'log' | 'arch' | 'ach' | 'hist' = 'play') {
     if (tab === 'ach' || tab === 'hist') tab = 'arch';
-    music(false);
     this.clear('hub', ['#1a2236', '#07060f'], 'rand');
     const m = meta(), goal = nextGoal();
     const canBuy = !!goal && m.staub >= goal.cost;
@@ -94,7 +111,8 @@ export class Game {
       h('div', { class: 'sf-hubhead' },
         h('button', { class: 'sf-ib', onclick: () => this.exit(), 'aria-label': L('Zurück', 'Back') }, '‹'),
         h('div', { class: 'sf-logo' }, h('small', null, L('Eine Sternensaga', 'A star saga')), h('b', null, 'Sternenfall')),
-        h('button', { class: 'sf-staub', onclick: () => this.hub('lab') }, `✧ ${N(m.staub)}`)),
+        h('div', { class: 'sf-headr' }, h('button', { class: 'sf-staub', onclick: () => this.hub('lab') }, h('i', { class: 'sfd' }), ` ${N(m.staub)}`),
+          h('button', { class: 'sf-ib gear', 'aria-label': L('Einstellungen', 'Settings'), onclick: () => showSettings([{ label: L('Spielregeln', 'Rules'), run: () => rules() }, { label: L('Quellen & Lizenzen', 'Credits & licenses'), run: () => this.credits() }]) }, '⚙'))),
       h('nav', { class: 'sf-tabs2' }, tabs.map(([id, ic, label, dot]) =>
         h('button', { class: tab === id ? 'on' : '', onclick: () => this.hub(id) }, h('span', { class: 'ic' }, ic), h('small', null, label), dot ? h('i', { class: 'dot' }) : ''))));
     const body = h('div', { class: 'sf-hubbody' });
@@ -184,6 +202,14 @@ export class Game {
     seg.append(h('button', { 'data-k': 'ach', onclick: () => show('ach') }, `${L('Erfolge', 'Feats')} ${m.achievements.length}/${ACHIEVEMENTS.length}`), h('button', { 'data-k': 'hist', onclick: () => show('hist') }, L('Verlauf', 'History')));
     body.append(seg, sub);
     show('ach');
+    body.append(h('button', { class: 'sf-link', onclick: () => this.credits() }, L('Quellen & Lizenzen (Musik, Bilder)', 'Credits & licenses (music, images)')));
+  }
+  private credits() {
+    sheet(L('Quellen & Lizenzen', 'Credits & licenses'),
+      h('p', { class: 'muted small' }, L('Alle Stücke und Bilder sind frei nutzbar (CC0 oder gemeinfrei, zwei NASA/ESA-Bilder CC BY 4.0). Für Sternenfall wurden die Bilder im Jugendstil-Farbton getönt und die Musik in Lautstärke und Klang angeglichen. Grafiken, Symbole, Gegner und Bosse sind eigene, im Code erzeugte Zeichnungen.',
+        'All tracks and images are free to use (CC0 or public domain, two NASA/ESA images CC BY 4.0). For Sternenfall the images were tinted in Art Nouveau tones and the music matched in loudness and tone. Graphics, symbols, enemies and bosses are original drawings generated in code.')),
+      ...CREDITS.map(g => h('div', { class: 'sf-credits' }, h('b', null, tx(g.group)),
+        h('ul', null, g.items.map(c => h('li', null, h('small', null, tx(c.what)), h('a', { href: c.url, target: '_blank', rel: 'noopener' }, c.title), h('span', null, ` · ${c.by} · ${c.license === 'gemeinfrei' ? L('gemeinfrei', 'public domain') : c.license}`)))))));
   }
 
   private hubLab(body: HTMLElement) {
@@ -280,7 +306,6 @@ export class Game {
   map(intro = false) {
     const run = this.run!;
     const sec = SECTOR[sectorOf(run)];
-    music(true, Math.min(4, run.act - 1 + Math.floor(run.floor / 4)));
     this.clear('map', sec.bg, sec.theme);
     const reach = new Set(reachable(run));
     const rows = Math.max(...run.map.map(n => n.row)) + 1;
@@ -327,6 +352,7 @@ export class Game {
       h('p', { class: 'muted small' }, `Seed ${run.seed} · ${L('Gefahr', 'Danger')} ${run.ascension}${run.mutators.length ? ' · ' + run.mutators.map(id => tx(MUTATORS.find(x => x.id === id)!.name)).join(', ') : ''}`),
       h('div', { class: 'stack', style: { gap: '10px' } },
         h('button', { class: 'btn block', onclick: () => { close(); rules(); } }, L('Spielregeln', 'Rules')),
+        h('button', { class: 'btn block', onclick: () => { close(); showSettings(); } }, L('Einstellungen', 'Settings')),
         h('button', { class: 'btn block', onclick: () => { close(); this.save(); this.hub(); } }, L('Pause: zur Brücke (gespeichert)', 'Pause: to the bridge (saved)')),
         h('button', { class: 'btn block stop', onclick: () => { close(); void this.result(false, L('aufgegeben', 'abandoned')); } }, L('Flug abbrechen', 'Abandon flight'))));
   }
@@ -359,7 +385,7 @@ export class Game {
     const sec = SECTOR[sectorOf(run)];
     const r = rngOf(run);
     const ids = kind === 'boss' ? [pick(r, sec.bosses)] : kind === 'elite' ? pick(r, sec.elite) : pick(r, run.floor <= 3 ? sec.easy : sec.hard);
-    music(true, Math.min(4, run.act + (kind === 'boss' ? 2 : kind === 'elite' ? 1 : 0)));
+    bgm(kind === 'boss' ? (ids[0] === 'architekt' ? 'final' : 'boss') : kind === 'elite' ? 'elite' : (['fight', 'fight2', 'fight3'] as const)[run.floor % 3]);
     this.clear('fight');
     this.sky.set(sec.theme, kind === 'boss' ? 'boss' : kind === 'elite' ? 'elite' : 'fight', sec.bg);
     const res = await runFight(this.view, run, ids, kind, this.particles, sec.bg, () => { this.save(); this.hub(); });
@@ -396,7 +422,7 @@ export class Game {
       box.innerHTML = '';
       if (!goldTaken) {
         const ge = h('b', { class: 'sf-goldnum' }, '0'); countUp(ge, gold, 600);
-        box.append(h('div', { class: 'sf-goldrow' }, h('div', null, h('small', null, L('Sternentaler', 'Star coins')), h('div', null, ge, ' ✦')),
+        box.append(h('div', { class: 'sf-goldrow' }, h('div', null, h('small', null, L('Sternentaler', 'Star coins')), h('div', null, ge, ' ', h('i', { class: 'sfc' }))),
           h('button', { class: 'sf-btn', onclick: () => { goldTaken = true; runCtx(run).gainGold(gold); snd.coin(); render(); } }, L('Nehmen', 'Take')),
           h('button', { class: 'sf-btn risk', onclick: () => this.doubleOrNothing(gold, won => { goldTaken = true; if (won) runCtx(run).gainGold(gold * 2); render(); }) }, L('Doppelt oder nichts', 'Double or nothing'))));
       }
@@ -582,7 +608,7 @@ export class Game {
         h('div', { class: 'sf-npc' }, portrait('ozzo'), h('div', null, h('b', null, tx(CAST.ozzo.name)), h('p', null, `„${greet}“`))), box);
       const grid = h('div', { class: 'sf-shopgrid' });
       for (const w of wares) {
-        const el = h('div', { class: 'sf-ware' + (w.sold ? ' sold' : '') }, cardEl(w.id, 1, { run }), h('div', { class: 'price' + (run.gold < w.price ? ' no' : '') }, w.sold ? L('verkauft', 'sold') : `${w.price} ✦`));
+        const el = h('div', { class: 'sf-ware' + (w.sold ? ' sold' : '') }, cardEl(w.id, 1, { run }), h('div', { class: 'price' + (run.gold < w.price ? ' no' : '') }, w.sold ? L('verkauft', 'sold') : [`${w.price} `, h('i', { class: 'sfc' })]));
         el.addEventListener('click', async () => { if (el.dataset.lp) { delete el.dataset.lp; return; } if (w.sold || run.gold < w.price) { snd.miss(); return; } const reel = await chooseReel(run, w.id); if (reel == null) return; run.gold -= w.price; runCtx(run).addSymbol(w.id, reel); discover('syms', w.id); w.sold = true; snd.coin(); this.save(); render(); });
         longPress(el, () => cardPreview(w.id));
         grid.append(el);
@@ -751,7 +777,7 @@ export class Game {
   // =========================================================================================== Ende
   private async result(won: boolean, by?: string) {
     const run = this.run!;
-    music(false);
+    bgm(null); sting(won ? 'win' : 'lose');
     const res = finishRun(run, won, by);
     const m0 = meta(); if (run.mods.bonusStaub) { m0.staub += run.mods.bonusStaub; m0.totalStaub += run.mods.bonusStaub; saveMeta(); }
     this.run = null;

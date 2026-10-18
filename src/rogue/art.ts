@@ -1,3 +1,4 @@
+import { sfs } from './settings';
 // Jugendstil-Grafiken für STERNENFALL, komplett als SVG erzeugt (keine Bilddateien, gestochen scharf auf jedem Display):
 // Kartenmotive mit Heiligenschein-Halo (à la Mucha), Peitschenhieb-Ornamente, organische Weltraumkreaturen,
 // eigene Boss-Kompositionen, Porträts der Figuren und Schiffe. Farben: Mitternachtsblau, Altgold, Rosé, Salbei, Elfenbein.
@@ -43,6 +44,38 @@ export function glyphRing(cx: number, cy: number, r: number, seed: number, n = 1
 function inkShade(cx: number, cy: number, r: number) {
   const id = gid('ink'), cl = gid('cl');
   return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".505" stop-color="#05040c" stop-opacity=".42"/><stop offset="1" stop-color="#05040c" stop-opacity=".6"/></linearGradient><clipPath id="${cl}"><circle cx="${cx}" cy="${cy}" r="${r}"/></clipPath></defs><rect x="0" y="0" width="100" height="100" fill="url(#${id})" clip-path="url(#${cl})"/>`;
+}
+
+/** Relief: weiches Licht von oben links (Glanzkante), Schlagschatten; optional organische Struktur (Haut, Stein). */
+function reliefFilter(id: string, grain = 0, seed = 1) {
+  const tex = grain ? `<feTurbulence type="fractalNoise" baseFrequency="${grain}" numOctaves="2" seed="${seed % 97}" result="n"/>
+    <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.8 0.58" result="nm"/>
+    <feComposite in="nm" in2="SourceAlpha" operator="in" result="tex"/>
+    <feComposite in="tex" in2="lit" operator="over" result="lit2"/>` : '';
+  return `<filter id="${id}" x="-15%" y="-15%" width="130%" height="140%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="1.3" result="b"/>
+    <feSpecularLighting in="b" surfaceScale="3.2" specularConstant=".85" specularExponent="16" lighting-color="#fff4dc" result="sp"><feDistantLight azimuth="225" elevation="48"/></feSpecularLighting>
+    <feComposite in="sp" in2="SourceAlpha" operator="in" result="spc"/>
+    <feComposite in="SourceGraphic" in2="spc" operator="arithmetic" k1="0" k2="1" k3=".5" k4="0" result="lit"/>
+    ${tex}
+    <feDropShadow in="${grain ? 'lit2' : 'lit'}" dx="1.3" dy="2.2" stdDeviation="1.4" flood-color="#000" flood-opacity=".55"/>
+  </filter>`;
+}
+/** Guilloché-Rosette (Gravurlinien wie auf alten Wertpapieren). */
+function guilloche(cx: number, cy: number, r: number, col: string, n = 12) {
+  let g = '';
+  for (let i = 0; i < n; i++) g += `<ellipse cx="${cx}" cy="${cy}" rx="${f1(r)}" ry="${f1(r * 0.42)}" transform="rotate(${f1((i * 180) / n)} ${cx} ${cy})" fill="none" stroke="${col}" stroke-width=".35"/>`;
+  return `<g opacity=".28">${g}<circle cx="${cx}" cy="${cy}" r="${f1(r * 0.42)}" fill="none" stroke="${col}" stroke-width=".35"/></g>`;
+}
+/** Langsam pulsierende Schwebeteilchen um eine Figur (SVG-Animation, kein JS). */
+function motes(seed: number, col: string, n = 5) {
+  const R = rng(seed * 17 + 3);
+  let g = '';
+  for (let i = 0; i < n; i++) {
+    const x = 12 + R() * 76, y = 14 + R() * 72, d = (2.5 + R() * 3).toFixed(1);
+    g += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(0.6 + R() * 0.9)}" fill="${col}"><animate attributeName="opacity" values="0;.9;0" dur="${d}s" begin="${f1(R() * 3)}s" repeatCount="indefinite"/><animate attributeName="cy" values="${f1(y)};${f1(y - 6)}" dur="${d}s" repeatCount="indefinite"/></circle>`;
+  }
+  return g;
 }
 
 /** Vierzackiger Jugendstil-Stern. */
@@ -102,11 +135,16 @@ const MOTIFS: Record<string, Motif> = {
 };
 
 /** Motiv eines Symbols als SVG (quadratisch). */
-export function symbolSvg(art: string, c1: string, c2: string) {
-  const g = gid('g'), r = gid('r');
+export function symbolSvg(art: string, c1: string, c2: string, lite = false) {
+  lite = lite || sfs().gfx === 'low';
+  const g = gid('g'), r = gid('r'), en = gid('en'), fx = gid('fx');
   const m = MOTIFS[art] ?? MOTIFS.stern;
   const seed = [...art].reduce((a, ch) => a + ch.charCodeAt(0), 0);
-  return svg('0 0 100 100', `<defs>${lin(g, c2, c1)}${rad(r, c1, c2)}</defs>${halo(50, 50, 40, c1, 28)}${glyphRing(50, 50, 45, seed, 22, CRYSTAL, 0.35)}${m(g, r, c1, c2)}`, 'sym-art');
+  const medal = `<radialGradient id="${en}" cx=".42" cy=".36" r=".7"><stop offset="0" stop-color="${c1}" stop-opacity=".38"/><stop offset=".7" stop-color="#0d0b1a" stop-opacity=".9"/><stop offset="1" stop-color="#05040c"/></radialGradient>`;
+  const back = `<circle cx="50" cy="50" r="38" fill="url(#${en})"/>${lite ? '' : guilloche(50, 50, 34, c2, 10)}`;
+  const dome = `<path d="M20 42 A31 31 0 0 1 44 19" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none" opacity=".2"/><path d="M24 50 A27 27 0 0 1 27 38" stroke="#fff" stroke-width="1.2" stroke-linecap="round" fill="none" opacity=".14"/>`;
+  const motif = lite ? m(g, r, c1, c2) : `<g filter="url(#${fx})">${m(g, r, c1, c2)}</g>`;
+  return svg('0 0 100 100', `<defs>${lin(g, c2, c1)}${rad(r, c1, c2)}${medal}${lite ? '' : reliefFilter(fx)}</defs>${back}${halo(50, 50, 40, c1, 28)}${glyphRing(50, 50, 45, seed, 22, CRYSTAL, 0.35)}${motif}${dome}`, 'sym-art');
 }
 
 // =========================================================================================== Gegner (Generator nach Archetyp)
@@ -116,16 +154,28 @@ export function enemySvg(look: { kind: string; seed: number; hue: number; boss?:
   const a = hsl(h, 45, 28), b = hsl(h + 25, 60, 62), c = hsl(h - 30, 55, 45);
   const g = gid('eg'), r = gid('er');
   let body = `<defs>${lin(g, b, a)}${rad(r, a, b)}</defs>`;
-  const eye = (x: number, y: number, s: number) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(s)}" ry="${f1(s * 0.7)}" fill="${IVORY}" stroke="${GOLD}" stroke-width=".7"/><circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(s * 0.42)}" fill="${CRYSTAL}"/><circle cx="${f1(x - s * 0.15)}" cy="${f1(y - s * 0.15)}" r="${f1(s * 0.14)}" fill="#fff"/>`;
+  const alive = sfs().gfx !== 'low', blink = f1(3.2 + R() * 3.5);
+  const eyes: [number, number, number][] = [];
+  /** Animation nur, wenn erlaubt. */
+  const an = (x: string) => (alive ? x : '');
+  const eye = (x: number, y: number, s: number) => { eyes.push([x, y, s]); return eyeArt(x, y, s); };
+  const eyeArt = (x: number, y: number, s: number) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(s)}" ry="${f1(s * 0.7)}" fill="${IVORY}" stroke="${GOLD}" stroke-width=".7"/><circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(s * 0.42)}" fill="${CRYSTAL}"/><circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(s * 0.42)}" fill="none" stroke="#0c3a40" stroke-width="${f1(s * 0.08)}" stroke-dasharray="${f1(s * 0.12)} ${f1(s * 0.1)}"/><circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(s * 0.17)}" fill="#05040c"/><circle cx="${f1(x - s * 0.15)}" cy="${f1(y - s * 0.15)}" r="${f1(s * 0.14)}" fill="#fff"/><ellipse cx="${f1(x)}" cy="${f1(y - s * 0.5)}" rx="${f1(s * 0.95)}" ry="${f1(s * 0.22)}" fill="${INK}" opacity=".35"/>`;
   switch (look.kind) {
     case 'kreatur': {                                   // Motte / Libelle / Käfer mit Ornamentflügeln
       const wings = 1 + Math.floor(R() * 2), span = 30 + R() * 10;
       for (let k = 0; k < wings; k++) {
         const y = 42 + k * 16, sz = span - k * 8;
-        body += `<path d="M50 ${y} C${50 - sz} ${y - 26} ${50 - sz - 14} ${y + 6} ${50 - sz / 2} ${y + 14} C${50 - 12} ${y + 18} 48 ${y + 8} 50 ${y}Z" fill="url(#${r})" stroke="${GOLD}" stroke-width=".9"/>`;
+        const flap = (k2: number) => an(`<animateTransform attributeName="transform" type="matrix" values="1 0 0 1 0 0;${k2} 0 0 1 ${f1(50 * (1 - k2))} 0;1 0 0 1 0 0" dur="${f1(1 + k * 0.15)}s" repeatCount="indefinite"/>`);
+        body += `<g>${flap(0.78)}<path d="M50 ${y} C${50 - sz} ${y - 26} ${50 - sz - 14} ${y + 6} ${50 - sz / 2} ${y + 14} C${50 - 12} ${y + 18} 48 ${y + 8} 50 ${y}Z" fill="url(#${r})" stroke="${GOLD}" stroke-width=".9"/>`;
         body += `<path d="M50 ${y} C${50 + sz} ${y - 26} ${50 + sz + 14} ${y + 6} ${50 + sz / 2} ${y + 14} C${50 + 12} ${y + 18} 52 ${y + 8} 50 ${y}Z" fill="url(#${r})" stroke="${GOLD}" stroke-width=".9"/>`;
         body += `<circle cx="${50 - sz * 0.62}" cy="${y}" r="${f1(sz * 0.14)}" fill="none" stroke="${IVORY}" stroke-width=".8"/><circle cx="${50 + sz * 0.62}" cy="${y}" r="${f1(sz * 0.14)}" fill="none" stroke="${IVORY}" stroke-width=".8"/>`;
+        for (const sx of [-1, 1]) {                       // Adern und gewellter Flügelrand
+          for (let v = 0; v < 4; v++) { const ex = 50 + sx * (sz * (0.45 + v * 0.18)), ey = y - 14 + v * 7; body += `<path d="M50 ${y + 2} Q${f1(50 + sx * sz * 0.3)} ${f1(ey + 4)} ${f1(ex)} ${f1(ey)}" stroke="${IVORY}" stroke-width=".4" fill="none" opacity=".55"/>`; }
+          for (let v = 0; v < 6; v++) body += `<circle cx="${f1(50 + sx * (sz * 0.35 + v * sz * 0.13))}" cy="${f1(y + 10 - v * 2.4)}" r="1" fill="${b}" opacity=".8"/>`;
+        }
+        body += `</g>`;
       }
+      for (let k = 0; k < 3; k++) body += `<path d="M46 ${58 + k * 6} L${36 - k * 2} ${64 + k * 8} L${33 - k * 2} ${74 + k * 6} M54 ${58 + k * 6} L${64 + k * 2} ${64 + k * 8} L${67 + k * 2} ${74 + k * 6}" stroke="${GOLD}" stroke-width=".8" fill="none" stroke-linejoin="round"/>`;
       body += `<ellipse cx="50" cy="56" rx="7" ry="22" fill="url(#${g})" stroke="${GOLD}"/>` + [0, 1, 2, 3].map(i => `<path d="M43 ${52 + i * 7} Q50 ${55 + i * 7} 57 ${52 + i * 7}" stroke="${IVORY}" fill="none" stroke-width=".6"/>`).join('');
       body += `<circle cx="50" cy="32" r="9" fill="url(#${g})" stroke="${GOLD}"/>${eye(46, 31, 3.2)}${eye(54, 31, 3.2)}`;
       body += whip(46, 24, 0.9, -120) + whip(54, 24, 0.9, -60, true);
@@ -134,57 +184,93 @@ export function enemySvg(look: { kind: string; seed: number; hue: number; boss?:
     }
     case 'qualle': {
       const n = 5 + Math.floor(R() * 3);
+      body += `<g>${an(`<animateTransform attributeName="transform" type="skewX" values="0;5;0;-5;0" dur="3.4s" repeatCount="indefinite"/>`)}`;
       for (let i = 0; i < n; i++) { const x = 30 + (i * 40) / (n - 1), w = 6 + R() * 6; body += `<path d="M${f1(x)} 50 C${f1(x - w)} 62 ${f1(x + w)} 72 ${f1(x)} 82 C${f1(x - w)} 90 ${f1(x + w / 2)} 94 ${f1(x)} 98" stroke="${i % 2 ? b : GOLD}" stroke-width="${f1(1 + R())}" fill="none" opacity=".85"/>`; }
+      body += `</g><g>${an(`<animateTransform attributeName="transform" type="matrix" values="1 0 0 1 0 0;1.04 0 0 .95 -2 2;1 0 0 1 0 0" dur="1.7s" repeatCount="indefinite"/>`)}`;
       body += `<path d="M18 52 C18 22 82 22 82 52 C72 46 62 56 50 50 C38 56 28 46 18 52Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1"/>`;
-      body += `<path d="M26 44 C34 32 66 32 74 44" stroke="${IVORY}" fill="none" stroke-width=".7" stroke-dasharray="2 2"/>${eye(42, 40, 4)}${eye(58, 40, 4)}`;
+      body += `<path d="M42 50 C36 62 50 70 42 84 C38 90 46 94 44 98 M58 50 C64 62 50 70 58 84 C62 90 54 94 56 98" stroke="${b}" stroke-width="3.2" fill="none" opacity=".75" stroke-linecap="round"/>`;
+      for (let i = 0; i < 7; i++) body += `<path d="M50 26 Q${f1(28 + i * 7.3)} 34 ${f1(22 + i * 9.3)} 50" stroke="${IVORY}" stroke-width=".45" fill="none" opacity=".45"/>`;
+      for (let i = 0; i < 12; i++) body += `<path d="M${f1(18 + i * 5.33)} 52 q${f1(2.66)} 4 ${f1(5.33)} 0" stroke="${GOLD}" stroke-width=".8" fill="none"/>`;
+      for (let i = 0; i < 6; i++) body += `<circle cx="${f1(30 + R() * 40)}" cy="${f1(32 + R() * 14)}" r="${f1(0.8 + R() * 1.2)}" fill="${CRYSTAL}" opacity=".85"/>`;
+      body += `<path d="M26 44 C34 32 66 32 74 44" stroke="${IVORY}" fill="none" stroke-width=".7" stroke-dasharray="2 2"/>${eye(42, 40, 4)}${eye(58, 40, 4)}</g>`;
       break;
     }
     case 'auge': {
       const petals = 8 + Math.floor(R() * 6);
+      body += `<g>${an(`<animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="48s" repeatCount="indefinite"/>`)}`;
       for (let i = 0; i < petals; i++) body += `<path d="M50 50 C44 36 46 22 50 10 C54 22 56 36 50 50Z" transform="rotate(${f1((i * 360) / petals)} 50 50)" fill="url(#${g})" stroke="${GOLD}" stroke-width=".6"/>`;
-      body += `<circle cx="50" cy="50" r="20" fill="${a}" stroke="${GOLD}" stroke-width="1.2"/>${eye(50, 50, 14)}`;
+      for (let i = 0; i < petals; i++) { const rot = ((i + 0.5) * 360) / petals; body += `<path d="M50 50 C45 40 46 30 50 22 C54 30 55 40 50 50Z" transform="rotate(${f1(rot)} 50 50)" fill="${c}" stroke="${GOLD}" stroke-width=".5"/><path d="M50 48 L50 26" transform="rotate(${f1(rot)} 50 50)" stroke="${IVORY}" stroke-width=".35" opacity=".6"/>`; }
+      for (let i = 0; i < petals; i++) body += `<path d="M50 46 L50 14" transform="rotate(${f1((i * 360) / petals)} 50 50)" stroke="${IVORY}" stroke-width=".35" opacity=".5"/>`;
+      body += `</g><circle cx="50" cy="50" r="20" fill="${a}" stroke="${GOLD}" stroke-width="1.2"/>`;
+      for (let i = 0; i < 28; i++) { const an = (i / 28) * Math.PI * 2; body += `<path d="M${f1(50 + Math.cos(an) * 16)} ${f1(50 + Math.sin(an) * 12)} L${f1(50 + Math.cos(an) * 19)} ${f1(50 + Math.sin(an) * 15)}" stroke="${INK}" stroke-width=".8"/>`; }
+      body += eye(50, 50, 14);
       break;
     }
     case 'kristall': {
       const n = 3 + Math.floor(R() * 3);
       for (let i = 0; i < n; i++) { const x = 28 + (i * 44) / Math.max(1, n - 1), hh = 30 + R() * 34; body += `<path d="M${f1(x)} ${f1(86 - hh)} L${f1(x + 9)} ${f1(86 - hh * 0.7)} L${f1(x + 6)} 86 L${f1(x - 6)} 86 L${f1(x - 9)} ${f1(86 - hh * 0.7)}Z" fill="url(#${r})" stroke="${IVORY}" stroke-width=".8"/>`; }
-      body += `<path d="M50 14 L64 40 L56 86 L44 86 L36 40Z" fill="url(#${g})" stroke="${GOLD}" stroke-width="1.2"/>${eye(50, 44, 5)}`;
+      body = body.replace(/<path d="M([\d.]+) ([\d.]+) L([\d.]+) ([\d.]+) L([\d.]+) 86 L([\d.]+) 86 L([\d.]+) ([\d.]+)Z"[^>]*\/>/g, (m0, x0, y0, x1, y1, x2, x3, x4, y4) => `${m0}<path d="M${x0} ${y0} L${x0} 86 M${x1} ${y1} L${x0} ${f1((+y0 + 86) / 2)} L${x4} ${y4}" stroke="${IVORY}" stroke-width=".45" fill="none" opacity=".6"/>`);
+      body = `<path d="M18 92 C20 82 34 80 50 82 C66 80 80 82 82 92 Z" fill="${INK}" stroke="${GOLD}" stroke-width=".8"/><path d="M30 86 L36 90 L34 92 M66 85 L62 89 L66 92" stroke="${a}" stroke-width=".7" fill="none"/>` + body;
+      body += `<path d="M50 14 L64 40 L56 86 L44 86 L36 40Z" fill="url(#${g})" stroke="${GOLD}" stroke-width="1.2"/>`;
+      body += `<path d="M50 14 L50 86 M36 40 L50 52 L64 40 M44 86 L50 52 L56 86" stroke="${IVORY}" stroke-width=".55" fill="none" opacity=".55"/><path d="M42 30 L46 22" stroke="#fff" stroke-width="1.4" opacity=".6" stroke-linecap="round"/>${eye(50, 44, 5)}`;
+      body += an(`<path d="M40 70 L60 30" stroke="#fff" stroke-width="2.2" opacity="0" stroke-linecap="round"><animate attributeName="opacity" values="0;0;.7;0" keyTimes="0;.8;.88;1" dur="4.5s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="-6 10;6 -10" dur="4.5s" repeatCount="indefinite"/></path>`);
+      for (let i = 0; i < 4; i++) { const x = 16 + R() * 68, y = 16 + R() * 30; body += `<path d="M${f1(x)} ${f1(y)} l2 -4 l2 4 l-2 3z" fill="${b}" stroke="${IVORY}" stroke-width=".3" opacity=".8"/>`; }
       break;
     }
     case 'schwarm': {
-      for (let i = 0; i < 14; i++) { const ang = R() * 6.28, d = 8 + R() * 30, x = 50 + Math.cos(ang) * d, y = 50 + Math.sin(ang) * d; body += `<path d="M${f1(x)} ${f1(y)} c-4 -4 -8 0 -6 3 c2 3 6 1 6 -3 c0 -4 4 -6 6 -3 c2 3 -2 7 -6 3Z" fill="url(#${r})" stroke="${GOLD}" stroke-width=".5"/><circle cx="${f1(x)}" cy="${f1(y + 1)}" r="1" fill="${IVORY}"/>`; }
+      body += `<circle cx="50" cy="50" r="9" fill="${CRYSTAL}" opacity=".18"/><circle cx="50" cy="50" r="4" fill="${CRYSTAL}" opacity=".5"/>`;
+      for (let i = 0; i < 14; i++) { const ang = R() * 6.28, d = 8 + R() * 30, x = 50 + Math.cos(ang) * d, y = 50 + Math.sin(ang) * d; body += `<g>${an(`<animateTransform attributeName="transform" type="translate" values="0 0;${f1(R() * 4 - 2)} ${f1(R() * 4 - 2)};${f1(R() * 4 - 2)} ${f1(R() * 4 - 2)};0 0" dur="${f1(0.6 + R() * 0.8)}s" repeatCount="indefinite"/>`)}`; body += `<ellipse cx="${f1(x - 3)}" cy="${f1(y - 4)}" rx="3" ry="1.6" fill="${IVORY}" opacity=".35" transform="rotate(-30 ${f1(x - 3)} ${f1(y - 4)})"/><ellipse cx="${f1(x + 1)}" cy="${f1(y - 4.5)}" rx="3" ry="1.6" fill="${IVORY}" opacity=".35" transform="rotate(30 ${f1(x + 1)} ${f1(y - 4.5)})"/>`; body += `<path d="M${f1(x)} ${f1(y)} c-4 -4 -8 0 -6 3 c2 3 6 1 6 -3 c0 -4 4 -6 6 -3 c2 3 -2 7 -6 3Z" fill="url(#${r})" stroke="${GOLD}" stroke-width=".5"/><circle cx="${f1(x)}" cy="${f1(y + 1)}" r="1" fill="${IVORY}"/></g>`; }
       break;
     }
     case 'mech': {
       body += `<path d="M30 30 C30 18 70 18 70 30 L76 66 C70 80 30 80 24 66Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.2"/>`;
-      body += `<path d="M36 34 C42 28 58 28 64 34 L64 46 L36 46Z" fill="${INK}" stroke="${IVORY}" stroke-width=".7"/>${eye(44, 40, 3.2)}${eye(56, 40, 3.2)}`;
+      body += `<path d="M36 34 C42 28 58 28 64 34 L64 46 L36 46Z" fill="${INK}" stroke="${IVORY}" stroke-width=".7"/><g>${an(`<animateTransform attributeName="transform" type="translate" values="-3 0;3 0;-3 0" dur="2.6s" repeatCount="indefinite"/>`)}${eyeArt(44, 40, 3.2)}${eyeArt(56, 40, 3.2)}</g>`;
       body += `<path d="M24 50 C10 52 8 70 16 78 M76 50 C90 52 92 70 84 78" stroke="${GOLD}" stroke-width="3" fill="none"/>`;
       if (R() < 0.6) body += `<path d="M24 56 C12 60 12 74 20 82 M76 56 C88 60 88 74 80 82" stroke="${b}" stroke-width="2" fill="none"/>`;
       body += whip(50, 62, 1, 90) + whip(50, 62, 1, 90, true);
+      body += `<path d="M28 50 L72 50 M27 58 L73 58 M50 46 L50 78" stroke="${IVORY}" stroke-width=".5" opacity=".45"/>`;
+      body += [32, 40, 60, 68].map(x => `<circle cx="${x}" cy="53" r=".9" fill="${GOLD}"/>`).join('');
+      body += `<circle cx="50" cy="64" r="5" fill="${INK}" stroke="${GOLD}" stroke-width=".8"/><circle cx="50" cy="64" r="2.8" fill="${CRYSTAL}"><animate attributeName="opacity" values="1;.4;1" dur="1.4s" repeatCount="indefinite"/></circle>`;
+      body += `<circle cx="16" cy="64" r="2.4" fill="${a}" stroke="${GOLD}" stroke-width=".7"/><circle cx="84" cy="64" r="2.4" fill="${a}" stroke="${GOLD}" stroke-width=".7"/><circle cx="24" cy="50" r="3.4" fill="${a}" stroke="${GOLD}" stroke-width=".8"/><circle cx="76" cy="50" r="3.4" fill="${a}" stroke="${GOLD}" stroke-width=".8"/>`;
+      body += `<path d="M58 20 L64 8" stroke="${GOLD}" stroke-width="1"/><circle cx="64" cy="8" r="1.6" fill="#ff6a5a"><animate attributeName="opacity" values="1;.2;1" dur="1.1s" repeatCount="indefinite"/></circle>`;
       break;
     }
     case 'jaeger': {                                   // verhüllte Händler, Schnecken, Kopfgeldjäger (Kantinen-Aliens)
       const variant = Math.floor(R() * 3);
       if (variant === 0) {                              // Kapuze mit Tentakelbart
         body += `<path d="M22 92 C22 50 30 18 50 14 C70 18 78 50 78 92Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.1"/><ellipse cx="50" cy="44" rx="15" ry="17" fill="${INK}"/>${eye(44, 40, 3)}${eye(56, 40, 3)}`;
-        for (let i = 0; i < 6; i++) body += `<path d="M${42 + i * 3.2} 52 C${40 + i * 3} 64 ${46 + i * 2} 70 ${42 + i * 3.5} 80" stroke="${b}" stroke-width="1.6" fill="none"/>`;
+        body += `<g>${an(`<animateTransform attributeName="transform" type="skewX" values="0;6;0;-6;0" dur="3s" repeatCount="indefinite"/>`)}`;
+        for (let i = 0; i < 6; i++) body += `<path d="M${42 + i * 3.2} 52 C${40 + i * 3} 64 ${46 + i * 2} 70 ${42 + i * 3.5} 80" stroke="${b}" stroke-width="1.6" fill="none"/><circle cx="${f1(42 + i * 3.5)}" cy="80" r=".9" fill="${b}"/>`;
+        body += `</g>`;
+        body += `<path d="M30 60 C34 74 32 84 28 92 M70 60 C66 74 68 84 72 92 M40 22 C34 40 34 60 36 92 M60 22 C66 40 66 60 64 92" stroke="${INK}" stroke-width=".7" fill="none" opacity=".55"/>`;
+        body += `<path d="M26 70 C40 74 60 74 74 70" stroke="${GOLD}" stroke-width="2" fill="none"/><circle cx="50" cy="73" r="2.6" fill="${CRYSTAL}" stroke="${GOLD}" stroke-width=".7"/>`;
       } else if (variant === 1) {                       // Schneckenhändler
-        body += `<path d="M14 84 C14 62 30 60 44 64 C44 40 56 26 66 30 C78 34 78 52 70 60 C84 64 90 76 86 84Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.1"/><path d="M62 30 L56 12 M70 32 L74 14" stroke="${GOLD}" stroke-width="1.4"/>${eye(56, 12, 3.4)}${eye(74, 14, 3.4)}<path d="M58 48 Q66 54 72 46" stroke="${INK}" fill="none" stroke-width="1.4"/>`;
-        body += `<circle cx="30" cy="70" r="12" fill="none" stroke="${GOLD}" stroke-width="1"/><path d="M30 70 m-8 0 a8 8 0 1 0 8 -8 a5 5 0 1 0 5 5" stroke="${IVORY}" fill="none" stroke-width=".8"/>`;
+        body += `<path d="M14 84 C14 62 30 60 44 64 C44 40 56 26 66 30 C78 34 78 52 70 60 C84 64 90 76 86 84Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.1"/><g>${an(`<animateTransform attributeName="transform" type="rotate" values="-6 66 31;6 66 31;-6 66 31" dur="2.2s" repeatCount="indefinite"/>`)}<path d="M62 30 L56 12 M70 32 L74 14" stroke="${GOLD}" stroke-width="1.4"/>${eye(56, 12, 3.4)}${eye(74, 14, 3.4)}</g><path d="M58 48 Q66 54 72 46" stroke="${INK}" fill="none" stroke-width="1.4"/>`;
+        body += `<circle cx="30" cy="70" r="13" fill="url(#${g})" stroke="${GOLD}" stroke-width="1"/><path d="M30 70 m-9 0 a9 9 0 1 0 9 -9 a6 6 0 1 0 6 6 a3 3 0 1 0 -3 -3" stroke="${IVORY}" fill="none" stroke-width=".8"/>`;
+        for (let i = 0; i < 10; i++) { const an = (i / 10) * Math.PI * 2; body += `<path d="M${f1(30 + Math.cos(an) * 9)} ${f1(70 + Math.sin(an) * 9)} L${f1(30 + Math.cos(an) * 13)} ${f1(70 + Math.sin(an) * 13)}" stroke="${INK}" stroke-width=".5" opacity=".5"/>`; }
+        body += `<path d="M10 86 C30 88 60 88 90 86" stroke="${b}" stroke-width="1.4" opacity=".5" fill="none" stroke-dasharray="1 3"/><path d="M62 70 Q66 74 62 78" stroke="${GOLD}" stroke-width=".9" fill="none"/>`;
       } else {                                          // Insektoider Jäger mit Helmzangen
-        body += `<path d="M30 90 L36 50 C36 30 64 30 64 50 L70 90Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.1"/><path d="M38 24 C30 6 44 2 46 18 M62 24 C70 6 56 2 54 18" stroke="${b}" stroke-width="2" fill="none"/><path d="M36 38 C36 22 64 22 64 38 C64 46 36 46 36 38Z" fill="${INK}" stroke="${GOLD}"/>${eye(43, 36, 4)}${eye(57, 36, 4)}<path d="M44 46 L40 56 M56 46 L60 56" stroke="${GOLD}" stroke-width="1.6"/>`;
+        body += `<path d="M30 90 L36 50 C36 30 64 30 64 50 L70 90Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.1"/><path d="M38 24 C30 6 44 2 46 18 M62 24 C70 6 56 2 54 18" stroke="${b}" stroke-width="2" fill="none"/><path d="M36 38 C36 22 64 22 64 38 C64 46 36 46 36 38Z" fill="${INK}" stroke="${GOLD}"/>${eye(43, 36, 4)}${eye(57, 36, 4)}<g>${an(`<animateTransform attributeName="transform" type="rotate" values="0 44 46;10 44 46;0 44 46" dur="1.3s" repeatCount="indefinite"/>`)}<path d="M44 46 L40 56 L43 58" stroke="${GOLD}" stroke-width="1.5" fill="none"/></g><g>${an(`<animateTransform attributeName="transform" type="rotate" values="0 56 46;-10 56 46;0 56 46" dur="1.3s" repeatCount="indefinite"/>`)}<path d="M56 46 L60 56 L57 58" stroke="${GOLD}" stroke-width="1.5" fill="none"/></g>`;
+        for (let i = 0; i < 4; i++) body += `<path d="M${33 + i} ${56 + i * 8} Q50 ${60 + i * 8} ${67 - i} ${56 + i * 8}" stroke="${INK}" stroke-width=".9" fill="none" opacity=".6"/>`;
+        body += `<path d="M36 50 L24 62 L22 76 M64 50 L76 62 L78 76" stroke="${b}" stroke-width="1.6" fill="none" stroke-linejoin="round"/><circle cx="24" cy="62" r="1.6" fill="${GOLD}"/><circle cx="76" cy="62" r="1.6" fill="${GOLD}"/>`;
       }
       break;
     }
     case 'wurm': {
       let d = 'M14 80';
       for (let i = 0; i < 4; i++) d += ` C${f1(20 + i * 16)} ${i % 2 ? 90 : 40} ${f1(28 + i * 16)} ${i % 2 ? 40 : 90} ${f1(34 + i * 16)} 64`;
-      body += `<path d="${d}" stroke="url(#${g})" stroke-width="16" fill="none" stroke-linecap="round"/><path d="${d}" stroke="${GOLD}" stroke-width="1" fill="none" stroke-dasharray="3 4"/>`;
-      body += `<circle cx="80" cy="54" r="13" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.2"/>${eye(76, 50, 3)}${eye(85, 52, 3)}<path d="M72 60 L88 62 L80 68Z" fill="${IVORY}"/>${whip(80, 42, 1, -80)}`;
+      body += `<path d="${d}" stroke="${GOLD}" stroke-width="18" fill="none" stroke-linecap="round" opacity=".55"/><path d="${d}" stroke="url(#${g})" stroke-width="16" fill="none" stroke-linecap="round"/>`;
+      body += `<path d="${d}" stroke="${INK}" stroke-width="16" fill="none" stroke-dasharray="1.1 5" opacity=".45"/><path d="${d}" stroke="${IVORY}" stroke-width="3" fill="none" stroke-dasharray="1 5.1" stroke-dashoffset="2" opacity=".5" transform="translate(0 -5)"/><path d="${d}" stroke="${GOLD}" stroke-width="1" fill="none" stroke-dasharray="3 4"/>`;
+      body += `<g>${an(`<animateTransform attributeName="transform" type="rotate" values="-5 72 60;6 72 60;-5 72 60" dur="2.4s" repeatCount="indefinite"/>`)}<circle cx="80" cy="54" r="13" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.2"/><path d="M70 50 Q68 54 70 58 M73 49 Q71 54 73 59" stroke="${INK}" stroke-width=".8" fill="none"/>${eye(76, 50, 3)}${eye(85, 52, 3)}`;
+      body += `<path d="M72 60 Q80 70 89 61 Z" fill="${INK}" stroke="${GOLD}" stroke-width=".7"/><path d="M74 61 L76 64 L78 61.6 L80 64.6 L82 61.8 L84 64 L86 61.4" fill="none" stroke="${IVORY}" stroke-width=".7"/>${whip(80, 42, 1, -80)}</g>`;
       break;
     }
   }
-  return svg('0 0 100 100', `${halo(50, 52, 44, c, 30)}${body}${inkShade(50, 52, 46)}`, 'foe-art');
+  const fx = gid('efx'), grain = look.kind === 'kristall' ? 0 : look.kind === 'mech' ? 0.7 : 1.15, low = sfs().gfx === 'low';
+  // Lider: schließen sich kurz im eigenen Takt des Gegners (alle Augen gemeinsam)
+  const lids = alive && look.kind !== 'mech' ? eyes.map(([x, y, k]) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(k * 1.08)}" ry="0" fill="${a}" stroke="${GOLD}" stroke-width=".5"><animate attributeName="ry" values="0;0;${f1(k * 0.78)};0" keyTimes="0;.9;.95;1" dur="${blink}s" repeatCount="indefinite"/></ellipse>`).join('') : '';
+  const breathe = alive ? `<animateTransform attributeName="transform" type="matrix" values="1 0 0 1 0 0;1.012 0 0 1.025 -.6 -1.3;1 0 0 1 0 0" dur="${f1(2.6 + R())}s" repeatCount="indefinite"/>` : '';
+  return svg('0 0 100 100', `${low ? '' : `<defs>${reliefFilter(fx, sfs().gfx === 'high' ? grain : 0, look.seed)}</defs>`}${halo(50, 52, 44, c, 30)}${guilloche(50, 52, 40, b, 8)}<g>${breathe}${low ? body : `<g filter="url(#${fx})">${body}</g>`}${lids}</g>${low ? '' : motes(look.seed, hsl(h + 180, 70, 75))}${inkShade(50, 52, 46)}`, 'foe-art');
 }
 
 // =========================================================================================== Bosse (eigene Kompositionen)
@@ -218,7 +304,8 @@ export function bossSvg(kind: string, h: number, seed: number): string {
     case 'architekt': s += `<path d="M50 4 L92 50 L50 96 L8 50Z" fill="none" stroke="${GOLD}" stroke-width="1"/><path d="M50 14 L82 50 L50 86 L18 50Z" fill="none" stroke="${b}" stroke-width=".6"/>` + `<path d="M30 96 L36 46 C36 24 64 24 64 46 L70 96Z" fill="#14101e" stroke="${GOLD}" stroke-width="1.3"/><path d="M38 30 C40 16 60 16 62 30 L62 50 C58 60 42 60 38 50Z" fill="${IVORY}" stroke="${GOLD}" stroke-width="1.2"/><path d="M42 38 L47 38 M53 38 L58 38" stroke="${INK}" stroke-width="2.5"/><path d="M50 42 L50 54" stroke="${GOLD}"/>` + Array.from({ length: 9 }, (_, i) => star4(14 + i * 9, 92 - Math.abs(4 - i) * 8, 2, '#8a80b0')).join(''); break;
     default: return enemySvg({ kind: 'auge', seed, hue: h });
   }
-  return svg('0 0 100 100', `${glyphRing(50, 50, 47, seed, 30, CRYSTAL, 0.6)}${s}${inkShade(50, 50, 48)}`, 'foe-art boss-art');
+  const fx = gid('bfx'), low = sfs().gfx === 'low';
+  return svg('0 0 100 100', `${low ? '' : `<defs>${reliefFilter(fx, sfs().gfx === 'high' ? 0.7 : 0, seed)}</defs>`}${glyphRing(50, 50, 47, seed, 30, CRYSTAL, 0.6)}${low ? s : `<g filter="url(#${fx})">${s}</g>${motes(seed, '#f0d08a', 8)}`}${inkShade(50, 50, 48)}`, 'foe-art boss-art');
 }
 
 // =========================================================================================== Porträts (Figuren der Geschichte)
@@ -242,18 +329,94 @@ export function portraitSvg(id: string) {
 
 // =========================================================================================== Schiffe
 export function shipSvg(hull: string, hue: number) {
-  const g = gid('sg'), r = gid('sr');
-  const a = hsl(hue, 45, 30), b = hsl(hue + 20, 55, 64);
-  let s = `<defs>${lin(g, b, a, 1, 0)}${rad(r, a, b)}</defs>`;
-  const glow = `<ellipse cx="18" cy="50" rx="12" ry="5" fill="#ffd27a" opacity=".7"/>`;
+  const g = gid('sg'), r = gid('sr'), fl = gid('sfl'), fx = gid('sfx'), gl = gid('sgl');
+  const a = hsl(hue, 45, 26), b = hsl(hue + 20, 55, 62), dk = hsl(hue, 40, 14);
+  const low = sfs().gfx === 'low';
+  const defs = `<defs>${lin(g, b, a, 1, 0)}${rad(r, a, b)}
+    <radialGradient id="${fl}" cx="1" cy=".5" r="1"><stop offset="0" stop-color="#fff8e0"/><stop offset=".35" stop-color="#ffd27a"/><stop offset=".7" stop-color="#ff8a3a" stop-opacity=".6"/><stop offset="1" stop-color="#ff5a2a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="${gl}" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#e8fffe"/><stop offset=".5" stop-color="${CRYSTAL}"/><stop offset="1" stop-color="#14444a"/></radialGradient>
+    ${low ? '' : reliefFilter(fx)}</defs>`;
+  // Triebwerksflamme (flackert), Positionslichter (blinken), Bullaugen, Cockpit-Kuppel
+  const flame = (x: number, y: number, len: number, w: number) =>
+    `<ellipse cx="${x - len / 2}" cy="${y}" rx="${len / 2}" ry="${w}" fill="url(#${fl})"><animate attributeName="rx" values="${len / 2};${len * 0.62};${len * 0.45};${len / 2}" dur=".35s" repeatCount="indefinite"/></ellipse>`;
+  const nav = (x: number, y: number, col: string, d: number) => `<circle cx="${x}" cy="${y}" r="1.5" fill="${col}"><animate attributeName="opacity" values="1;.15;1" dur="1.6s" begin="${d}s" repeatCount="indefinite"/></circle>`;
+  const port = (x: number, y: number, k = 1.9) => `<circle cx="${x}" cy="${y}" r="${k}" fill="#ffe9a8" stroke="${GOLD}" stroke-width=".5"/><circle cx="${x - k * 0.3}" cy="${y - k * 0.3}" r="${k * 0.35}" fill="#fff"/>`;
+  const dome = (x: number, y: number, rx: number, ry: number) => `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="url(#${gl})" stroke="${GOLD}" stroke-width=".9"/><path d="M${x - rx * 0.6} ${y - ry * 0.2} A${rx * 0.7} ${ry * 0.7} 0 0 1 ${x + rx * 0.2} ${y - ry * 0.75}" stroke="#fff" stroke-width=".9" fill="none" opacity=".7"/>`;
+  const seam = (d: string) => `<path d="${d}" fill="none" stroke="${IVORY}" stroke-width=".45" opacity=".45"/>`;
+  let back = '', body = '';
   switch (hull) {
-    case 'forscher': s += glow + `<path d="M20 50 C30 30 70 26 90 50 C70 74 30 70 20 50Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.3"/><circle cx="62" cy="50" r="12" fill="none" stroke="${GOLD}" stroke-width="1.2"/><circle cx="62" cy="50" r="7" fill="none" stroke="${IVORY}" stroke-dasharray="2 2"/><path d="M62 38 L62 22 M62 62 L62 78" stroke="${GOLD}"/>`; break;
-    case 'phantom': s += glow + `<path d="M24 50 C40 18 76 14 92 50 C76 86 40 82 24 50Z" fill="url(#${r})" stroke="${GOLD}"/><path d="M50 50 C36 20 14 26 18 44 M50 50 C36 80 14 74 18 56" fill="${b}" opacity=".5" stroke="${GOLD}"/><circle cx="74" cy="50" r="5" fill="${IVORY}"/>`; break;
-    case 'titan': s += glow + `<path d="M16 38 L80 34 L94 50 L80 66 L16 62Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.4"/><path d="M30 34 L36 18 L56 18 L60 34 M30 66 L36 82 L56 82 L60 66" fill="${a}" stroke="${GOLD}"/><circle cx="70" cy="50" r="6" fill="${IVORY}"/>`; break;
-    case 'singular': s += glow + `<path d="M22 50 C34 26 76 26 88 50 C76 74 34 74 22 50Z" fill="url(#${r})" stroke="${GOLD}"/>` + [0, 1, 2].map(i => `<ellipse cx="66" cy="50" rx="${12 - i * 3.5}" ry="${8 - i * 2.4}" fill="none" stroke="${i % 2 ? IVORY : GOLD}"/>`).join(''); break;
-    default: s += glow + `<path d="M18 50 C28 36 60 30 92 50 C60 70 28 64 18 50Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.3"/><path d="M40 42 C34 22 52 18 58 38 M40 58 C34 78 52 82 58 62" fill="${a}" stroke="${GOLD}"/><circle cx="72" cy="50" r="6" fill="#fff2c0" stroke="${GOLD}"/>${whip(50, 50, 0.8, 0)}`; break;
+    case 'forscher': // Messing-Astrolab: Kugelrumpf im Armillarring, Fernrohr am Bug
+      back = flame(24, 50, 22, 6);
+      body = `<path d="M22 44 L34 44 L34 56 L22 56 Z" fill="${dk}" stroke="${GOLD}" stroke-width=".8"/>
+        <path d="M64 46 L94 44 L96 47 L96 53 L94 56 L64 54 Z" fill="url(#${g})" stroke="${GOLD}" stroke-width=".9"/><rect x="88" y="43" width="3" height="14" rx="1" fill="${GOLD}"/>
+        <circle cx="50" cy="50" r="19" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.3"/>
+        <ellipse cx="50" cy="50" rx="27" ry="8" fill="none" stroke="${GOLD}" stroke-width="1.4" transform="rotate(-18 50 50)"/>
+        <ellipse cx="50" cy="50" rx="25" ry="10" fill="none" stroke="${IVORY}" stroke-width=".6" stroke-dasharray="2 2" transform="rotate(28 50 50)"/>
+        ${seam('M33 44 C42 40 58 40 67 44 M33 56 C42 60 58 60 67 56')}${dome(52, 46, 7, 6)}${port(42, 56)}${port(50, 59)}${port(58, 56)}
+        <path d="M50 31 L50 22 M46 22 L54 22" stroke="${GOLD}" stroke-width="1.1"/>`;
+      body += nav(50, 21, '#ff6a5a', 0) + nav(50, 70, '#7aff9a', 0.8);
+      break;
+    case 'phantom': // Nachtfalter: schlanker Leib, große gemusterte Mottenflügel
+      back = flame(30, 50, 16, 4);
+      body = `<path d="M50 48 C40 16 16 10 12 26 C10 38 26 44 50 50 Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1"/>
+        <path d="M50 52 C40 84 16 90 12 74 C10 62 26 56 50 50 Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1"/>
+        <path d="M50 48 C46 30 34 22 26 26 M50 52 C46 70 34 78 26 74" fill="none" stroke="${IVORY}" stroke-width=".5" opacity=".6"/>
+        <circle cx="26" cy="28" r="5" fill="${dk}" stroke="${GOLD}" stroke-width=".7"/><circle cx="26" cy="28" r="2.2" fill="${CRYSTAL}"/>
+        <circle cx="26" cy="72" r="5" fill="${dk}" stroke="${GOLD}" stroke-width=".7"/><circle cx="26" cy="72" r="2.2" fill="${CRYSTAL}"/>
+        <path d="M30 50 C40 44 70 44 88 50 C70 56 40 56 30 50 Z" fill="url(#${g})" stroke="${GOLD}" stroke-width="1"/>
+        ${seam('M42 50 L80 50')}${[0, 1, 2, 3].map(i => `<path d="M${46 + i * 8} 46.5 L${46 + i * 8} 53.5" stroke="${GOLD}" stroke-width=".5" opacity=".7"/>`).join('')}
+        ${dome(78, 50, 5, 3.4)}<path d="M86 48 C92 40 96 38 98 36 M86 52 C92 60 96 62 98 64" fill="none" stroke="${GOLD}" stroke-width=".8"/>`;
+      body += nav(14, 26, '#ff6a5a', 0) + nav(14, 74, '#7aff9a', 0.8);
+      break;
+    case 'titan': // Sonnenamboss: schwere Panzerplatten, Doppeltriebwerk, Bugkanonen
+      back = flame(16, 42, 18, 5) + flame(16, 58, 18, 5);
+      body = `<path d="M16 36 L28 32 L28 68 L16 64 Z" fill="${dk}" stroke="${GOLD}" stroke-width=".8"/>
+        <path d="M26 30 L74 28 L90 40 L96 50 L90 60 L74 72 L26 70 Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.4"/>
+        <path d="M34 30 L40 16 L62 16 L66 29 M34 70 L40 84 L62 84 L66 71" fill="url(#${g})" stroke="${GOLD}" stroke-width="1"/>
+        ${seam('M30 40 L84 40 M30 60 L84 60 M48 29 L48 71 M66 29 L66 71')}
+        ${[34, 42, 56, 74].flatMap(x => [`<circle cx="${x}" cy="35" r=".9" fill="${GOLD}"/>`, `<circle cx="${x}" cy="65" r=".9" fill="${GOLD}"/>`]).join('')}
+        <rect x="80" y="44" width="16" height="3" rx="1" fill="${GOLD}"/><rect x="80" y="53" width="16" height="3" rx="1" fill="${GOLD}"/>
+        ${dome(72, 50, 6, 5)}${port(38, 50)}${port(46, 50)}${port(54, 50)}`;
+      body += nav(51, 16, '#ff6a5a', 0) + nav(51, 84, '#7aff9a', 0.8);
+      break;
+    case 'singular': // Die Spirale: Klingenrumpf, Wurmloch-Ring am Bug
+      back = flame(22, 50, 18, 5);
+      body = `<path d="M20 50 C30 32 56 28 74 36 C64 42 64 58 74 64 C56 72 30 68 20 50 Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.2"/>
+        <path d="M36 40 C30 24 40 14 50 16 C44 22 44 32 48 38 M36 60 C30 76 40 86 50 84 C44 78 44 68 48 62" fill="url(#${g})" stroke="${GOLD}" stroke-width=".9"/>
+        ${seam('M28 50 C40 44 56 44 66 48 M28 50 C40 56 56 56 66 52')}
+        <circle cx="80" cy="50" r="14" fill="none" stroke="${GOLD}" stroke-width="1.6"/>
+        <circle cx="80" cy="50" r="10" fill="none" stroke="${b}" stroke-width="1.2" stroke-dasharray="3 2"><animateTransform attributeName="transform" type="rotate" from="0 80 50" to="360 80 50" dur="6s" repeatCount="indefinite"/></circle>
+        <circle cx="80" cy="50" r="6" fill="#0a0614" stroke="${CRYSTAL}" stroke-width="1"/><circle cx="80" cy="50" r="2.4" fill="${CRYSTAL}"><animate attributeName="r" values="2;3.2;2" dur="1.8s" repeatCount="indefinite"/></circle>
+        ${port(40, 50)}${port(48, 50)}${port(56, 50)}`;
+      body += nav(48, 16, '#ff6a5a', 0) + nav(48, 84, '#7aff9a', 0.8);
+      break;
+    default: // Lumen-Kreuzer: Tropfenrumpf, geschwungene Jugendstil-Schwingen, Rückenflosse
+      back = flame(20, 50, 20, 5.5);
+      body = `<path d="M44 44 C36 26 46 12 60 14 C54 22 54 34 60 42 Z" fill="url(#${g})" stroke="${GOLD}" stroke-width="1"/>
+        <path d="M44 56 C36 74 46 88 60 86 C54 78 54 66 60 58 Z" fill="url(#${g})" stroke="${GOLD}" stroke-width="1"/>
+        <path d="M18 50 C24 38 50 32 70 36 C82 39 92 44 96 50 C92 56 82 61 70 64 C50 68 24 62 18 50 Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.3"/>
+        <path d="M24 50 C40 44 70 42 92 50" fill="none" stroke="${GOLD}" stroke-width=".9"/>
+        ${seam('M30 56 C46 60 66 60 84 55 M44 38 L44 62 M62 37 L62 63')}
+        <path d="M30 44 L22 36 L34 40 Z" fill="${GOLD}"/>
+        ${dome(80, 48, 7, 5)}${port(40, 53)}${port(48, 54)}${port(56, 54)}${whip(52, 50, 0.6, 0)}`;
+      body += nav(58, 15, '#ff6a5a', 0) + nav(58, 85, '#7aff9a', 0.8);
   }
-  return svg('0 0 100 100', s, 'ship-art');
+  return svg('0 0 100 100', `${defs}${back}${low ? body : `<g filter="url(#${fx})">${body}</g>`}`, 'ship-art');
+}
+
+/** Geprägte Goldmünze (Stern, Perlrand) und geschliffener Sternenstaub-Kristall – als Daten-URL für CSS-Symbole. */
+export function coinIcon() {
+  let beads = '';
+  for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; beads += `<circle cx="${f1(16 + Math.cos(a) * 12.4)}" cy="${f1(16 + Math.sin(a) * 12.4)}" r=".8" fill="#fff3c4" opacity=".85"/>`; }
+  const body = `<defs><radialGradient id="c" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff2c0"/><stop offset=".55" stop-color="#e0b050"/><stop offset="1" stop-color="#8a5a18"/></radialGradient></defs>
+    <circle cx="16" cy="16" r="15" fill="#5a3a10"/><circle cx="16" cy="16" r="14" fill="url(#c)"/>${beads}<circle cx="16" cy="16" r="10" fill="none" stroke="#8a5a18" stroke-width=".8"/>
+    ${star4(16, 16, 7, '#8a5a18')}${star4(15.4, 15.4, 6.4, '#fff4cc')}<path d="M7 11 A10 10 0 0 1 13 6" stroke="#fff" stroke-width="1.4" stroke-linecap="round" fill="none" opacity=".6"/>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg('0 0 32 32', body))}")`;
+}
+export function dustIcon() {
+  const body = `<defs><linearGradient id="d" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#9ff5f2"/><stop offset="1" stop-color="#2a8a90"/></linearGradient></defs>
+    <path d="M16 2 L26 12 L16 30 L6 12 Z" fill="url(#d)" stroke="#e8c070" stroke-width="1"/><path d="M6 12 L26 12 M16 2 L12 12 L16 30 L20 12 Z" fill="none" stroke="#fff" stroke-width=".6" opacity=".7"/>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg('0 0 32 32', body))}")`;
 }
 
 /** Ornamentale Trennlinie (Jugendstil). */
@@ -268,4 +431,49 @@ export function sectorPattern(theme: string, c1: string) {
   for (let i = 0; i < 14; i++) s += star4(R() * 200, R() * 200, 1 + R() * 3, i % 4 ? IVORY : GOLD, 0.25 + R() * 0.4);
   s += whip(30, 170, 2.2, -30, false, c1, 0.8) + whip(170, 40, 2, 150, true, c1, 0.8);
   return `url("data:image/svg+xml,${encodeURIComponent(svg('0 0 200 200', s))}")`;
+}
+
+/** Jugendstil-Eckranke (Ranke mit Blättern, Knospe, Spiralranken) als Daten-URL; corner = tl | tr | bl | br. */
+export function cornerOrn(corner: 'tl' | 'tr' | 'bl' | 'br', col = '#c9a45c') {
+  const leaf = (x: number, y: number, rot: number, s = 1) => `<path d="M0 0 C3 -4 9 -4 12 0 C9 4 3 4 0 0Z" transform="translate(${x} ${y}) rotate(${rot}) scale(${s})" fill="${col}" fill-opacity=".55" stroke="${col}" stroke-width=".5"/><path d="M0 0 L11 0" transform="translate(${x} ${y}) rotate(${rot}) scale(${s})" stroke="#0b0a14" stroke-width=".35" opacity=".6"/>`;
+  const body = `<g fill="none" stroke="${col}" stroke-linecap="round">
+      <path d="M3 58 C3 34 8 16 22 8 C32 3 44 3 58 3" stroke-width="1.2"/>
+      <path d="M7 50 C10 30 18 16 34 10" stroke-width=".6" opacity=".7"/>
+      <path d="M22 8 C18 14 22 20 27 18 C31 16 29 11 25 12" stroke-width=".8"/>
+      <path d="M6 26 C12 26 14 32 10 35 C7 37 5 33 8 31" stroke-width=".8"/>
+      <path d="M40 4 C42 9 48 10 50 7" stroke-width=".7"/></g>
+    ${leaf(12, 16, -60, 0.9)}${leaf(30, 6, -10, 0.8)}${leaf(4, 40, -95, 0.75)}${leaf(46, 4, 15, 0.6)}
+    <g transform="translate(9 9)"><circle r="4.2" fill="${col}" fill-opacity=".35" stroke="${col}" stroke-width=".7"/>${[0, 72, 144, 216, 288].map(a => `<ellipse rx="1.6" ry="3.4" transform="rotate(${a}) translate(0 -4.2)" fill="${col}" fill-opacity=".6"/>`).join('')}<circle r="1.5" fill="#6fe3e0"/></g>`;
+  const tf = { tl: '', tr: 'translate(60 0) scale(-1 1)', bl: 'translate(0 60) scale(1 -1)', br: 'translate(60 60) scale(-1 -1)' }[corner];
+  return `url("data:image/svg+xml,${encodeURIComponent(svg('0 0 60 60', `<g transform="${tf}">${body}</g>`))}")`;
+}
+/** Waagerechte Ranke für Abschnittsköpfe (links → Mitte, gespiegelt rechts). */
+export function vineRule(col = '#c9a45c', flip = false) {
+  const body = `<g fill="none" stroke="${col}" stroke-linecap="round"><path d="M2 10 C30 10 50 4 80 8 C100 11 112 10 118 10" stroke-width="1"/>
+    <path d="M40 8 C44 2 52 2 52 7 C52 11 46 11 47 7" stroke-width=".7"/><path d="M84 9 C88 15 96 15 96 10 C96 6 90 6 91 10" stroke-width=".7"/></g>
+    <path d="M0 0 C3 -3 8 -3 10 0 C8 3 3 3 0 0Z" transform="translate(62 6) rotate(-20)" fill="${col}" fill-opacity=".6"/><path d="M0 0 C3 -3 8 -3 10 0 C8 3 3 3 0 0Z" transform="translate(24 11) rotate(15)" fill="${col}" fill-opacity=".6"/>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg('0 0 120 20', flip ? `<g transform="translate(120 0) scale(-1 1)">${body}</g>` : body))}")`;
+}
+
+/** Jugendstil-Rahmen als 9-Teilungsbild mit Überstand (border-image-outset): Der Kasten bleibt ganz (sanft gerundet),
+ *  an den Ecken schwingen Peitschenhieb-Linien über den Rand hinaus und bilden Schleifen, Spiralen und Blätter.
+ *  Bild 80×80, Ecken in 30×30; die Kastenlinie liegt bei 11 (= Kante des Elements, 8 px Überstand außen).
+ *  variant 'a' | 'b' setzt die große Schleife und die Ranke an verschiedene Ecken (bewusst asymmetrisch). */
+export function frameImg(style: 'gold' | 'ink' = 'gold', variant: 'a' | 'b' = 'a') {
+  const c1 = style === 'gold' ? '#e0b860' : '#6a4a20', c2 = style === 'gold' ? '#8a6420' : '#9a7a48', bud = style === 'gold' ? '#6fe3e0' : '#a8403a';
+  const E = 11, R = 6;                                                    // Kastenkante, Eckradius
+  const leaf = (x: number, y: number, rot: number, k = 1) => `<path d="M0 0 C2.6 -3.2 7.4 -3.2 9.6 0 C7.4 3.2 2.6 3.2 0 0Z" transform="translate(${x} ${y}) rotate(${rot}) scale(${k})" fill="${c1}" fill-opacity=".75"/><path d="M0 0 L8.6 0" transform="translate(${x} ${y}) rotate(${rot}) scale(${k})" stroke="#0b0a14" stroke-width=".35" opacity=".5"/>`;
+  // Grundlinie der Ecke (oben links, gerundet) – doppelt
+  const base = `<path d="M30 ${E} H${E + R} Q${E} ${E} ${E} ${E + R} V30" fill="none" stroke="${c1}" stroke-width="1.5"/><path d="M30 ${E + 3} H${E + R + 1} Q${E + 3} ${E + 3} ${E + 3} ${E + R + 1} V30" fill="none" stroke="${c2}" stroke-width=".7"/>`;
+  // Große Schleife: läuft auf der Oberkante, schwingt über die Ecke hinaus, dreht eine Schlaufe und kehrt an der Seite zurück
+  const loop = `${base}<path d="M28 ${E} C20 ${E} 14 6 8 3.5 C2 1 0.5 7 4 9.5 C7.5 12 11 8 8.5 5.5 C6 3.5 3 6 2.5 10 C2 16 ${E} 20 ${E} 28" fill="none" stroke="${c1}" stroke-width="1.2" stroke-linecap="round"/>${leaf(16, 6.5, -160, 0.85)}${leaf(5.5, 17, 105, 0.75)}<circle cx="6.2" cy="7.4" r="1.3" fill="${bud}"/>`;
+  // Ranke: verlässt die Kante, rollt sich außen zur Spirale mit Knospe
+  const vine = `${base}<path d="M26 ${E} C22 ${E - 4} 16 ${E - 7} 10 ${E - 7} C4 ${E - 7} 1.5 ${E - 2} 3.5 1 + ${E} C5.5 ${E + 4} 10 ${E + 3} 9.5 ${E} C9 ${E - 2.5} 6 ${E - 2} 6 ${E}" fill="none" stroke="${c1}" stroke-width="1" stroke-linecap="round"/>${leaf(19, E - 5.5, 200, 0.7)}<circle cx="6" cy="${E}" r="1.4" fill="${bud}"/>`.replace('3.5 1 + ' + E, `3.5 ${E + 1}`);
+  // Haken: kleiner Schwung über die Ecke
+  const hook = `${base}<path d="M${E + 8} ${E} C${E + 2} ${E - 1} ${E - 4} ${E - 5} ${E - 7} ${E - 8} C${E - 9} ${E - 10} ${E - 5} ${E - 11} ${E - 4} ${E - 8}" fill="none" stroke="${c1}" stroke-width=".9" stroke-linecap="round"/>`;
+  const plan = variant === 'a' ? [loop, hook, vine, base] : [hook, loop, base, vine];   // tl tr br bl
+  const T = ['', 'translate(80 0) scale(-1 1)', 'translate(80 80) scale(-1 -1)', 'translate(0 80) scale(1 -1)'];
+  let body = plan.map((c, i) => `<g transform="${T[i]}">${c}</g>`).join('');
+  body += `<path d="M30 ${E} H50 M30 ${80 - E} H50 M${E} 30 V50 M${80 - E} 30 V50" stroke="${c1}" stroke-width="1.5"/><path d="M30 ${E + 3} H50 M30 ${77 - E} H50 M${E + 3} 30 V50 M${77 - E} 30 V50" stroke="${c2}" stroke-width=".7"/>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg('0 0 80 80', body))}")`;
 }

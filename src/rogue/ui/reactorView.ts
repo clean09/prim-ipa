@@ -12,6 +12,8 @@ import { discover, track, unlock } from '../meta';
 import { Foe, Intent, Run } from '../types';
 import { moduleEl, roman, showConsts, showReels, tx } from './parts';
 import { CONST } from '../data/constellations';
+import { pace, sfs } from '../settings';
+import { showSettings } from './settingsView';
 import { TRAIT, traitsOf } from '../data/traits';
 import { TAG_INFO } from '../data/symbols';
 import { ornament } from '../art';
@@ -35,7 +37,11 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
     const statusEl = h('div', { class: 'sf-hero' });
     const fx = h('div', { class: 'sf-fx' });
     const crest = h('button', { class: 'sf-crest', onclick: () => showConsts(run) });
-    const machine = h('div', { class: 'sf-machine' },
+    // Jugendstil-Krone mit Sternenherz-Kristall, seitliche Hitzesäulen
+    const crown = h('div', { class: 'sf-crown', html: crownSvg(run.ship) });
+    const pillar = (side: string) => h('div', { class: 'sf-pillar ' + side }, h('i'));
+    const machine = h('div', { class: 'sf-machine', 'data-ship': run.ship },
+      crown, pillar('l'), pillar('r'),
       crest,
       h('div', { class: 'sf-window' }, reelsEl, linesSvg), holdRow,
       h('div', { class: 'sf-controls' }, heatEl, h('div', { class: 'sf-spinwrap' }, spinBtn, pips), endBtn));
@@ -85,19 +91,19 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
             if (e.kind === 'jackpot') { snd.jackpot(); flash(root, 'rgba(232,192,112,.5)', 600); shake(root, 2); haptic('success'); const [x, y] = center(reelsEl); particles.burst(x, y, 90, 0xe8c070, 380, 4); }
             else { snd.prime(2); const [x, y] = center(reelsEl); particles.burst(x, y, 24, 0x9fd0c8, 220); }
             break;
-          case 'kill': { const el = foeNode.get(e.uid); const [x, y] = center(el); particles.burst(x, y, e.boss ? 180 : 50, e.boss ? 0xf0d080 : 0xe0a070, e.boss ? 420 : 260, e.boss ? 5 : 3); snd.kill(); el?.classList.add('dead'); diedAt.set(e.uid, performance.now()); if (e.boss) { slowmo(root, particles, 1800); flash(root, '#fff6dc', 700); shake(root, 3); haptic('success'); } break; }
+          case 'kill': { const el = foeNode.get(e.uid); const [x, y] = center(el); particles.burst(x, y, e.boss ? 180 : 50, e.boss ? 0xf0d080 : 0xe0a070, e.boss ? 420 : 260, e.boss ? 5 : 3); snd.kill(); el?.classList.add('dead'); diedAt.set(e.uid, performance.now()); if (e.boss) { snd.bosskill(); slowmo(root, particles, 1800); flash(root, '#fff6dc', 700); shake(root, 3); haptic('success'); } break; }
           case 'rad': { const el = foeNode.get(e.uid); const [x, y] = center(el); floatText(fx, x, y + 14, e.n > 0 ? `☢ −${e.n}` : `☢ +${-e.n}`, 'psn'); break; }
           case 'log': logEl.textContent = e.text; logEl.classList.remove('in'); void logEl.offsetWidth; logEl.classList.add('in'); break;
           case 'foeNote': { const el = foeNode.get(e.uid); const [x, y] = center(el); floatText(fx, x, y - 30, e.text, e.good ? 'heal' : 'blk'); break; }
           case 'shake': shake(root, e.n); break;
           case 'gold': if (e.n) { const [x, y] = center(statusEl); floatText(fx, x, y - 44, `${e.n > 0 ? '+' : ''}${e.n} ✦`, 'gold'); snd.coin(); } break;
-          case 'overheat': overheatsHere++; snd.lose(); flash(root, 'rgba(255,90,40,.5)', 700); shake(root, 2.5); machine.classList.remove('overheat'); void machine.offsetWidth; machine.classList.add('overheat'); { const [x, y] = center(heatEl); particles.burst(x, y, 60, 0xd0d0d0, 200, 6); } break;
+          case 'overheat': overheatsHere++; snd.overheat(); flash(root, 'rgba(255,90,40,.5)', 700); shake(root, 2.5); machine.classList.remove('overheat'); void machine.offsetWidth; machine.classList.add('overheat'); { const [x, y] = center(heatEl); particles.burst(x, y, 60, 0xd0d0d0, 200, 6); } break;
           case 'heat': renderHeat(); break;
           case 'enemyAct': foeNode.get(e.uid)?.classList.add('acting'); setTimeout(() => foeNode.get(e.uid)?.classList.remove('acting'), 500); break;
           case 'spawn': break;
         }
       },
-      pause: (ms: number) => new Promise<void>(r => setTimeout(() => { renderFoes(); renderStatus(); r(); }, ms)),
+      pause: (ms: number) => new Promise<void>(r => setTimeout(() => { renderFoes(); renderStatus(); r(); }, ms * pace())),
     };
 
     const c = new Reactor(run, ids, ui, kind);
@@ -142,7 +148,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       topEl.innerHTML = '';
       topEl.append(h('div', { class: 'sf-ship', html: shipSvg(sh.hull, sh.hue) }),
         h('div', { class: 'sf-stat hp' }, h('i', { style: { width: `${Math.max(0, run.hp / run.maxHp) * 100}%` } }), h('span', null, `${Math.max(0, run.hp)}/${run.maxHp}`)),
-        h('div', { class: 'sf-stat gold' }, `✦ ${run.gold}`),
+        h('div', { class: 'sf-stat gold' }, h('i', { class: 'sfc' }), ` ${run.gold}`),
         h('button', { class: 'sf-ib', onclick: () => showReels(run) }, '⚙'),
         h('button', { class: 'sf-ib', onclick: menu }, '☰'),
         h('div', { class: 'sf-mods' }, run.modules.map(id => moduleEl(id))));
@@ -204,13 +210,13 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         const b = h('button', { class: 'sf-hold ' + mode, disabled: busy || c.spin === 0 || !c.canSpin() },
           h('span', null, c.held[r] ? L('🔒 Halten', '🔒 Hold') : c.nudge[r] ? L('▲ Schubsen', '▲ Nudge') : L('Frei', 'Free')),
           c.spin > 0 ? h('i', { class: 'sf-peek', title: tx(pd.name), html: symbolSvg(pd.art, pd.c1, pd.c2) }) : '');
-        b.addEventListener('click', () => { if (c.toggleHold(r)) { snd.card(); renderReelsStatic(); renderStatus(); } });
+        b.addEventListener('click', () => { if (c.toggleHold(r)) { snd.hold(); renderReelsStatic(); renderStatus(); } });
         holdRow.append(b);
       });
     }
-    function cell(s: { id: string; lv: number }) {
+    function cell(s: { id: string; lv: number }, lite = false) {
       const d = SYM[s.id];
-      return h('div', { class: `sf-cell t-${d.tag}${d.wild ? ' wild' : ''}` }, h('div', { class: 'sf-cellart', html: symbolSvg(d.art, d.c1, d.c2) }), s.lv > 1 ? h('i', null, ['', '', 'II', 'III'][s.lv]) : '');
+      return h('div', { class: `sf-cell t-${d.tag}${d.wild ? ' wild' : ''}` }, h('div', { class: 'sf-cellart', html: symbolSvg(d.art, d.c1, d.c2, lite) }), s.lv > 1 ? h('i', null, ['', '', 'II', 'III'][s.lv]) : '');
     }
     function renderReelsStatic() {
       reelsEl.innerHTML = '';
@@ -236,12 +242,12 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         const nudged = nudgeBefore[r] && oldGrid[r];
         const extra = heldBefore[r] ? 0 : nudged ? 1 : 16 + r * 7;
         const seq = nudged ? [oldGrid[r][0], ...c.grid[r]] : [...Array.from({ length: extra }, () => reel[Math.floor(Math.random() * reel.length)]), ...c.grid[r]];
-        seq.forEach(s => strip.append(cell(s)));
+        seq.forEach((s, i) => strip.append(cell(s, i < seq.length - 3 || sfs().gfx !== 'high')));   // Füller ohne Filter (flüssiges Drehen)
         cellEl[r] = [...strip.children].slice(-3) as HTMLElement[];
         col.append(strip);
         reelsEl.append(col);
         if (!extra) continue;
-        const dur = nudged ? 420 : 900 + r * 420 + (r === 2 && near ? 800 : 0);
+        const dur = (nudged ? 420 : 900 + r * 420 + (r === 2 && near ? 800 : 0)) * pace();
         // Web Animations statt CSS-Transition: läuft sicher an, auch wenn der Streifen erst in diesem Bild eingefügt wurde.
         const end = `translateY(${-extra * cellH}px)`;
         const anim = strip.animate([
@@ -268,6 +274,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       busy = true; renderStatus();
       const heldBefore = [...c.held], nudgeBefore = [...c.nudge], oldGrid = c.grid.map(col => [...col]);
       c.spinOnce();
+      snd.spin();
       machine.classList.add('spinning');
       await animateSpin(heldBefore, nudgeBefore, oldGrid);
       machine.classList.remove('spinning');
@@ -310,6 +317,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         h('div', { class: 'stack', style: { gap: '10px' } },
           h('button', { class: 'btn block', onclick: () => { close(); showReels(run); } }, L('Walzen ansehen', 'View reels')),
           h('button', { class: 'btn block', onclick: () => { close(); rules(); } }, L('Spielregeln', 'Rules')),
+          h('button', { class: 'btn block', onclick: () => { close(); showSettings(); } }, L('Einstellungen', 'Settings')),
           h('button', { class: 'btn block', onclick: () => { close(); onPause(); } }, L('Pause: zur Brücke (Lauf bleibt gespeichert)', 'Pause: to the bridge (run stays saved)'))));
     }
 
@@ -330,6 +338,48 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       card.addEventListener('click', close); setTimeout(close, 3200);
     } else turnBanner(L('Kampf!', 'Fight!'), 'me');
   });
+}
+
+/** Reaktor-Krone je Schiff (Jugendstil-Bogen + eigenes Herzstück). Farben kommen aus CSS-Variablen der Maschine. */
+function crownSvg(ship: string) {
+  const defs = `<defs><radialGradient id="sfgem" cx="50%" cy="40%" r="60%"><stop offset="0" style="stop-color:var(--gem0)"/><stop offset=".45" style="stop-color:var(--gem1)"/><stop offset="1" style="stop-color:var(--gem2)"/></radialGradient>
+    <linearGradient id="sfgold" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--trim0)"/><stop offset=".5" style="stop-color:var(--trim1)"/><stop offset="1" style="stop-color:var(--trim2)"/></linearGradient></defs>`;
+  const arch = `<path d="M8 54 C8 26 70 12 180 10 C290 12 352 26 352 54" fill="none" stroke="url(#sfgold)" stroke-width="2.4"/>
+    <path d="M22 54 C24 33 80 22 180 20 C280 22 336 33 338 54" fill="none" style="stroke:var(--trim1)" stroke-width="1" opacity=".7"/>`;
+  const whips = `<path d="M150 30 C130 30 118 40 104 36 C92 33 92 22 102 22 C110 22 110 30 104 30" fill="none" stroke="url(#sfgold)" stroke-width="1.6"/>
+    <path d="M210 30 C230 30 242 40 256 36 C268 33 268 22 258 22 C250 22 250 30 256 30" fill="none" stroke="url(#sfgold)" stroke-width="1.6"/>`;
+  const dots = `<circle cx="60" cy="40" r="2.2" style="fill:var(--trim1)"/><circle cx="300" cy="40" r="2.2" style="fill:var(--trim1)"/>`;
+  let heart: string, extra = '';
+  switch (ship) {
+    case 'astrolab': // Armillarsphäre: Ringe um eine runde Sonne
+      extra = `<ellipse cx="180" cy="24" rx="34" ry="9" fill="none" stroke="url(#sfgold)" stroke-width="1.4" transform="rotate(-14 180 24)"/>
+        <ellipse cx="180" cy="24" rx="30" ry="12" fill="none" stroke="url(#sfgold)" stroke-width="1" opacity=".8" transform="rotate(22 180 24)"/>
+        <path d="M120 40 L150 30 M240 40 L210 30" stroke="url(#sfgold)" stroke-width="1.2"/>` + Array.from({ length: 13 }, (_, i) => { const a = Math.PI * (1.08 + i * 0.065); return `<path d="M${180 + Math.cos(a) * 158} ${54 + Math.sin(a) * 40} l${Math.cos(a) * 6} ${Math.sin(a) * 6}" style="stroke:var(--trim1)" stroke-width="1"/>`; }).join('');
+      heart = `<circle class="gem" cx="180" cy="24" r="14" fill="url(#sfgem)" stroke="url(#sfgold)" stroke-width="2"/>`;
+      break;
+    case 'nachtfalter': // Mottenflügel + Sichelmond
+      extra = `<path d="M180 26 C150 2 108 6 112 28 C116 44 150 40 180 30 Z" fill="none" stroke="url(#sfgold)" stroke-width="1.6"/>
+        <path d="M180 26 C210 2 252 6 248 28 C244 44 210 40 180 30 Z" fill="none" stroke="url(#sfgold)" stroke-width="1.6"/>
+        <circle cx="138" cy="22" r="4" fill="none" style="stroke:var(--trim1)"/><circle cx="222" cy="22" r="4" fill="none" style="stroke:var(--trim1)"/>
+        <path d="M176 8 C170 2 166 0 162 1 M184 8 C190 2 194 0 198 1" fill="none" stroke="url(#sfgold)" stroke-width="1.2"/>`;
+      heart = `<path class="gem" d="M188 8 A17 17 0 1 0 188 42 A21 21 0 0 1 188 8 Z" fill="url(#sfgem)" stroke="url(#sfgold)" stroke-width="1.6"/>`;
+      break;
+    case 'amboss': // Ambosskrone mit Hörnern und Flammenkern
+      extra = `<path d="M118 40 L132 14 L150 30 L166 8 L180 26 L194 8 L210 30 L228 14 L242 40" fill="none" stroke="url(#sfgold)" stroke-width="2.2" stroke-linejoin="round"/>
+        <rect x="150" y="40" width="60" height="7" rx="1.5" fill="url(#sfgold)"/>` + [70, 100, 260, 290].map(x => `<circle cx="${x}" cy="44" r="2.6" style="fill:var(--trim1)"/>`).join('');
+      heart = `<path class="gem" d="M180 4 C190 16 196 22 192 32 C190 38 184 42 180 42 C176 42 170 38 168 32 C164 22 172 18 174 10 C176 18 180 20 182 16 C184 12 182 8 180 4 Z" fill="url(#sfgem)" stroke="url(#sfgold)" stroke-width="1.4"/>`;
+      break;
+    case 'spirale': // Wirbel um ein Wurmloch-Auge
+      extra = `<path d="M180 25 m-26 0 a26 26 0 1 1 52 0 a22 22 0 1 1 -44 0 a18 18 0 1 1 36 0" fill="none" stroke="url(#sfgold)" stroke-width="1.4" opacity=".9"/>
+        <path d="M110 44 C130 20 150 40 154 25 M250 44 C230 20 210 40 206 25" fill="none" stroke="url(#sfgold)" stroke-width="1.4"/>`;
+      heart = `<circle class="gem" cx="180" cy="25" r="11" fill="url(#sfgem)" stroke="url(#sfgold)" stroke-width="1.8"/><circle cx="180" cy="25" r="4" fill="#05030a"/>`;
+      break;
+    default: // Lumen-Kreuzer: Kristallraute
+      extra = whips;
+      heart = `<path class="gem" d="M180 2 L196 22 L180 44 L164 22 Z" fill="url(#sfgem)" stroke="url(#sfgold)" stroke-width="2"/>
+        <path d="M180 2 L188 22 L180 44 M164 22 L196 22" stroke="#fff" stroke-width=".6" opacity=".6" fill="none"/>`;
+  }
+  return `<svg viewBox="0 0 360 54" preserveAspectRatio="xMidYMax meet" aria-hidden="true">${defs}${arch}${ship === 'kreuzer' ? '' : whips.replace(/stroke-width="1.6"/g, 'stroke-width="1.1" opacity=".55"')}${extra}${heart}${dots}</svg>`;
 }
 
 function traitList(id: string) {

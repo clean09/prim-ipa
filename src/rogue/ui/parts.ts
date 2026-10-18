@@ -36,7 +36,7 @@ export function cardEl(id: string, lv = 1, opts: { big?: boolean; small?: boolea
     opts.small ? '' : h('div', { class: 'sc-text' }, tx(d.text(lv))),
     opts.small ? '' : h('div', { class: 'sc-rar' }, d.tag === 'fluch' ? L('Schrott', 'Junk') : `${RAR()[d.rarity]} · ${L(tag.de, tag.en)}${cs ? ` · ${tx(cs.name)}` : ''}`),
     prog,
-    opts.price != null ? h('div', { class: 'sc-price' }, `${opts.price} ✦`) : '');
+    opts.price != null ? h('div', { class: 'sc-price' }, `${opts.price} `, h('i', { class: 'sfc' })) : '');
   return el;
 }
 export function cardPreview(id: string, lv = 1) {
@@ -63,7 +63,7 @@ export function topBar(run: Run, onReels: () => void, onMenu: () => void) {
   return h('div', { class: 'sf-top' },
     h('div', { class: 'sf-ship', html: shipSvg(sh.hull, sh.hue) }),
     h('div', { class: 'sf-stat hp' }, h('i', { style: { width: `${Math.max(0, run.hp / run.maxHp) * 100}%` } }), h('span', null, `${run.hp}/${run.maxHp}`)),
-    h('div', { class: 'sf-stat gold' }, `✦ ${run.gold}`),
+    h('div', { class: 'sf-stat gold' }, h('i', { class: 'sfc' }), ` ${run.gold}`),
     h('button', { class: 'sf-ib', onclick: onReels, 'aria-label': L('Walzen', 'Reels') }, `⚙ ${run.reels.reduce((s, r) => s + r.length, 0)}`),
     h('button', { class: 'sf-ib', onclick: onMenu, 'aria-label': 'Menü' }, '☰'),
     h('div', { class: 'sf-mods' }, run.modules.map(id => moduleEl(id))));
