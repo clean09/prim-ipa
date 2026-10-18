@@ -15,9 +15,13 @@ const THEME: Record<string, { neb: RGB[]; star: RGB }> = {
   horizont: { neb: [[120, 60, 140], [60, 30, 80], [200, 120, 80]], star: [240, 220, 255] },
   kern: { neb: [[170, 80, 50], [120, 40, 40], [190, 130, 70]], star: [255, 230, 190] },
   rand: { neb: [[40, 60, 90], [60, 50, 90], [30, 90, 100]], star: [200, 230, 240] },
+  werft: { neb: [[120, 100, 80], [70, 80, 100], [170, 110, 60]], star: [250, 235, 210] },
+  riff: { neb: [[40, 150, 130], [60, 110, 170], [150, 200, 120]], star: [220, 255, 240] },
+  tiefsee: { neb: [[30, 70, 140], [40, 120, 150], [20, 40, 90]], star: [200, 230, 255] },
+  sturm: { neb: [[110, 60, 170], [60, 50, 130], [170, 90, 160]], star: [235, 220, 255] },
 };
 /** Getönte NASA-Aufnahme je Thema (public/sf/img, siehe tools/sf_assets.py). */
-const PHOTO: Record<string, string> = { asteroiden: 'guertel', eis: 'frost', nebel: 'orion', pulsar: 'pulsar', horizont: 'horizont', kern: 'kern', rand: 'rand', hub: 'hub' };
+const PHOTO: Record<string, string> = { asteroiden: 'guertel', eis: 'frost', nebel: 'orion', pulsar: 'pulsar', horizont: 'horizont', kern: 'kern', rand: 'rand', hub: 'hub', werft: 'werft', riff: 'riff', tiefsee: 'tiefsee', sturm: 'sturm' };
 const photos = new Map<string, HTMLImageElement>();
 function photo(key: string, onload: () => void) {
   let im = photos.get(key);
@@ -28,6 +32,9 @@ function photo(key: string, onload: () => void) {
 }
 const rgba = (c: RGB, a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
+let current: { hold(ms: number): void } | null = null;
+/** Himmel kurz anhalten (z. B. während die Walzen laufen). */
+export const skyHold = (ms: number) => current?.hold(ms);
 export class Sky {
   readonly el: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -43,6 +50,7 @@ export class Sky {
   private get still() { return document.documentElement.dataset.motion === 'reduced' || sfs().gfx === 'low'; }
 
   constructor() {
+    current = this;
     this.el = document.createElement('canvas');
     this.el.className = 'sf-sky';
     this.ctx = this.el.getContext('2d')!;
@@ -50,7 +58,7 @@ export class Sky {
     document.addEventListener('visibilitychange', this.vis);
   }
   private resize = () => {
-    this.dpr = Math.min(1.5, devicePixelRatio || 1);
+    this.dpr = Math.min(sfs().gfx === 'high' ? 1.5 : 1, devicePixelRatio || 1);
     this.w = Math.max(1, this.el.clientWidth || innerWidth); this.h = Math.max(1, this.el.clientHeight || innerHeight);
     this.el.width = Math.round(this.w * this.dpr); this.el.height = Math.round(this.h * this.dpr);
     this.build();
@@ -68,6 +76,9 @@ export class Sky {
   }
   start() { if (this.running || document.hidden) return; this.running = true; this.last = performance.now(); this.raf = requestAnimationFrame(this.frame); }
   stop() { this.running = false; cancelAnimationFrame(this.raf); }
+  private holdUntil = 0; private bolt = 0;
+  /** Himmel für ms anhalten (Walzenlauf): die Drift ist so langsam, dass man es nicht sieht – spart aber viel Rechenzeit. */
+  hold(ms: number) { this.holdUntil = performance.now() + ms; }
   dispose() { this.stop(); removeEventListener('resize', this.resize); document.removeEventListener('visibilitychange', this.vis); this.el.remove(); }
 
   // ------------------------------------------------------------------------------------------- Aufbau
@@ -102,6 +113,10 @@ export class Sky {
       case 'eis': add(2, 55, () => ({ vx: (Math.random() - 0.5) * 6, vy: 8 + Math.random() * 16, r: 1 + Math.random() * 2.5, vr: (Math.random() - 0.5) * 1.5 })); break;
       case 'nebel': add(3, 30, () => ({ vy: -(4 + Math.random() * 8), vx: (Math.random() - 0.5) * 3, r: 1.5 + Math.random() * 3 })); break;
       case 'kern': add(4, 60, () => ({ y: h * (0.5 + Math.random() * 0.6), vy: -(10 + Math.random() * 30), vx: (Math.random() - 0.5) * 6, r: 1 + Math.random() * 2.2 })); break;
+      case 'werft': add(1, 8, () => ({ vx: 2 + Math.random() * 6, vy: (Math.random() - 0.5) * 2, r: 10 + Math.random() * 26, vr: (Math.random() - 0.5) * 0.3 })); add(4, 20, () => ({ y: h * Math.random(), vy: -(6 + Math.random() * 12), vx: (Math.random() - 0.5) * 4, r: 0.8 + Math.random() * 1.4 })); break;
+      case 'riff': add(7, 40, () => ({ vy: -(3 + Math.random() * 7), vx: (Math.random() - 0.5) * 4, r: 1.5 + Math.random() * 3.5 })); break;
+      case 'tiefsee': add(6, 34, () => ({ vy: -(8 + Math.random() * 18), vx: (Math.random() - 0.5) * 3, r: 1.5 + Math.random() * 5 })); break;
+      case 'sturm': add(8, 70, () => ({ vy: 140 + Math.random() * 120, vx: -40 - Math.random() * 30, r: 6 + Math.random() * 10 })); break;
       case 'rand': add(5, 5, () => ({ vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3, r: 30 + Math.random() * 70, vr: (Math.random() - 0.5) * 0.08 })); break;
     }
     const m = this.mood;
@@ -117,7 +132,8 @@ export class Sky {
   private frame = (now: number) => {
     if (!this.running) return;
     this.raf = requestAnimationFrame(this.frame);
-    if (now - this.last < 31) return;                         // ~30 Bilder/s reichen für Hintergründe
+    if (now - this.last < (sfs().gfx === 'high' ? 31 : 41)) return;   // ~30 (mittel ~24) Bilder/s reichen für Hintergründe
+    if (now < this.holdUntil) { this.last = now; return; }      // während teurer Momente (Walzen) kurz anhalten
     const dt = Math.min(0.1, (now - this.last) / 1000); this.last = now;
     const pace = this.mood === 'boss' ? 2.2 : this.mood === 'elite' ? 1.6 : this.mood === 'fight' ? 1.3 : this.mood === 'rest' || this.mood === 'lost' ? 0.6 : 1;
     this.t += dt * pace;
@@ -154,6 +170,8 @@ export class Sky {
     // Themenbühne hinter den Sternen
     if (this.theme === 'eis') this.aurora();
     if (this.theme === 'pulsar') this.pulsar();
+    if (this.theme === 'sturm') { if (Math.random() < dt * 0.25) this.bolt = 1; if (this.bolt > 0) { ctx.fillStyle = `rgba(210,190,255,${0.18 * this.bolt})`; ctx.fillRect(0, 0, w, h); this.bolt -= dt * 3; } }
+    if (this.theme === 'tiefsee') { for (let k = 0; k < 4; k++) { const x = w * (0.15 + k * 0.24) + Math.sin(t * 0.2 + k) * 30, g = ctx.createLinearGradient(x, 0, x + 60, h); g.addColorStop(0, `rgba(140,200,255,${0.07 + 0.03 * Math.sin(t * 0.5 + k * 2)})`); g.addColorStop(1, 'rgba(140,200,255,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - 20, 0); ctx.lineTo(x + 30, 0); ctx.lineTo(x + 120, h); ctx.lineTo(x + 40, h); ctx.fill(); } }
     if (this.theme === 'horizont' && !this.img) this.blackHole();
     if (this.theme === 'kern') { const g = ctx.createRadialGradient(w / 2, h * 1.15, 0, w / 2, h * 1.15, h * 0.9); g.addColorStop(0, `rgba(255,160,80,${0.2 + 0.06 * Math.sin(t * 1.7)})`); g.addColorStop(1, 'rgba(255,120,60,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
 
@@ -276,6 +294,13 @@ export class Sky {
       case 2: { wrap(10); ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot); ctx.strokeStyle = 'rgba(220,240,255,.6)'; ctx.lineWidth = 0.8; ctx.beginPath(); for (let i = 0; i < 3; i++) { const a = i * 1.047; ctx.moveTo(-Math.cos(a) * b.r * 2, -Math.sin(a) * b.r * 2); ctx.lineTo(Math.cos(a) * b.r * 2, Math.sin(a) * b.r * 2); } ctx.stroke(); ctx.restore(); break; }
       case 3: case 12: case 15: { wrap(10); const a = 0.4 + 0.4 * Math.sin(t * 2 + b.seed * 30); const c = b.kind === 3 ? '255,190,230' : b.kind === 12 ? '200,170,255' : '160,230,220'; ctx.fillStyle = `rgba(${c},${a})`; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.283); ctx.fill(); break; }
       case 4: case 13: { if (b.y < -10) { b.y = h + 10; b.x = Math.random() * w; } const hot = b.kind === 4 ? '255,180,90' : '255,226,150'; ctx.fillStyle = `rgba(${hot},${0.5 + 0.4 * Math.sin(t * 6 + b.seed * 40)})`; ctx.fillRect(b.x, b.y, b.r, b.r * 2.2); break; }
+      case 6: { wrap(12); const wob = Math.sin(t * 2 + b.seed * 20) * 0.8; b.x += wob * dt * 8;   // Blasen (Tiefsee)
+        ctx.strokeStyle = `rgba(190,230,255,${0.35 + 0.2 * Math.sin(t + b.seed * 9)})`; ctx.lineWidth = 0.8; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.283); ctx.stroke();
+        ctx.fillStyle = 'rgba(230,250,255,.5)'; ctx.fillRect(b.x - b.r * 0.45, b.y - b.r * 0.55, b.r * 0.35, b.r * 0.35); break; }
+      case 7: { wrap(14); const a = 0.25 + 0.35 * Math.sin(t * 1.5 + b.seed * 30) ** 2;   // leuchtende Sporen (Riff)
+        const g = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * 3); g.addColorStop(0, `rgba(170,255,210,${a})`); g.addColorStop(1, 'rgba(120,230,200,0)'); ctx.fillStyle = g; ctx.fillRect(b.x - b.r * 3, b.y - b.r * 3, b.r * 6, b.r * 6); break; }
+      case 8: { if (b.y > h + 10) { b.y = -20; b.x = Math.random() * (w + 80); } if (b.x < -20) b.x = w + 20;   // Sturmregen
+        ctx.strokeStyle = 'rgba(200,190,255,.22)'; ctx.lineWidth = 0.7; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx * 0.05, b.y - b.r); ctx.stroke(); break; }
       case 5: { wrap(b.r); ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot); ctx.strokeStyle = `rgba(111,227,224,${0.08 + 0.06 * Math.sin(t + b.seed * 10)})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, 6.283); ctx.stroke();
         for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283; ctx.beginPath(); ctx.moveTo(Math.cos(a) * b.r * 0.86, Math.sin(a) * b.r * 0.86); ctx.lineTo(Math.cos(a + 0.12) * b.r * 0.94, Math.sin(a + 0.12) * b.r * 0.94); ctx.stroke(); } ctx.restore(); break; }
       case 10: { if (b.y > h + 10) { b.y = -10; b.x = Math.random() * w; } ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot); ctx.fillStyle = `rgba(240,200,110,${0.55 + 0.4 * Math.sin(t * 5 + b.seed * 30)})`; ctx.fillRect(-b.r, -b.r * 0.4, b.r * 2, b.r * 0.8); ctx.restore(); break; }

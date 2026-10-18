@@ -67,7 +67,12 @@ Jedes Symbol gehört zu einer von 8 **Konstellationen**. Mit 3, 5 oder 7 Symbole
   - Ein Deck, das nur eine Sache kann, scheitert deshalb an bestimmten Bossen. Gute Läufe mischen eine Haupt- mit einer Neben-Konstellation.
 
 ## Aufbau eines Laufs
-- Ein Lauf besteht aus 3 Sektoren, nach dem ersten Sieg aus 4 (dann mit dem Endsektor „Rand“ und dem Architekten).
+- Ein Lauf hat **6 Akte**: je ein Sektor der Stufen 1–5 und zum Schluss immer „Der Rand“ mit dem Architekten.
+  - Akt 1: Singender Gürtel / Frostring · Akt 2: Schiffsgrab von Kesh / Lebendes Riff · Akt 3: Lilien von Orion / Leuchtfeuer-Feld
+  - Akt 4: Thal’Ora, die Versunkene Stadt / Ewiger Sturm von Vhar · Akt 5: Ereignishorizont / Galaktischer Kern · Akt 6: Der Rand
+- Akt 1–5 haben 13 Etappen plus Boss, der Rand 8 plus Boss. Ozzo legt in jedem Akt mindestens zweimal an.
+- **Häfen** nach Akt 2 (Freihafen Mirr-Anvaal) und Akt 4 (Abtei der Lichtsammler): drei von fünf Stationen besuchen –
+  großer Basar mit Rabatt, Werkstatt/Lichtschmiede, Kantine mit eigenen Begegnungen, Kassiks Kopfgeld (Elite + 50 Taler), Casino bzw. Archiv.
 - Jeder Sektor hat eine verzweigte Karte mit diesen Stationen:
   - ⚔ Gefecht
   - ☠ Elite
@@ -94,7 +99,7 @@ Alles ist datengetrieben. Eine neue Datei ist nicht nötig, es reicht ein Eintra
 | **Modul** | `src/rogue/data/modules.ts` | `{ id, name, icon, rarity, text, onRunStart / onCombatStart / onTurnStart / onLine / onKill / onOverheat / modDamage / modGold … }`, optional `cursed: true` |
 | **Gegner** | `src/rogue/data/enemies.ts` | `{ id, name, look: { kind, seed, hue }, hp: [min, max], tier, next: (e, t) => Absicht }`. `kind` ist `kreatur`, `qualle`, `auge`, `kristall`, `schwarm`, `mech`, `jaeger` oder `wurm`, der Look wird prozedural erzeugt. Mechaniken laufen über `passive`, `onSpawn`, `modTaken`, `onHurt`, `onTurnStart`, `special`. |
 | **Boss** | wie Gegner | `tier: 'boss'`, `look.boss: '<motiv>'` (neues Motiv in `art.ts → bossSvg`) |
-| **Sektor** | `enemies.ts → SECTORS` | `{ id, tier 1–4, name, text, bg, theme, easy, hard, elite, bosses, pack? }` |
+| **Sektor** | `enemies.ts → SECTORS` | `{ id, tier 1–6, name, text, bg, theme, easy, hard, elite, bosses, pack? }` |
 | **Begegnung** | `src/rogue/data/events_a.ts` / `events_b.ts` | `{ id, act (0 = überall), icon, title, text, options: [{ label, check?: { chance, raise }, win: [Outcome], lose?, winText, loseText }] }` |
 | **Story** | `src/rogue/data/story.ts` | `CHAPTERS` mit `unlock: 'start' \| 'visit:<sektor>' \| 'boss:<sektor>' \| 'win' \| 'final' \| 'runs:<n>'`; Figuren in `CAST` |
 | **Forschung / Schiffe** | `src/rogue/data/ships.ts` | `SHIPS`, `RESEARCH`, `MUTATORS` |
@@ -111,6 +116,6 @@ const S = await import('/tools/sternenfall-sim.ts'); const r = await S.sim(300, 
 
 Der Simulator spielt Läufe ohne Shop, Rast und Begegnungen. Optionen: `{ deck: 'glut', pick: 'build' }` hält die Konstellation, `pick: 'random'` nimmt irgendwas.
 
-Ziel der Abstimmung: Zufällige Decks gewinnen einen Lauf mit 3 Sektoren selten (≈ 15 %), gut gebaute Decks deutlich öfter (≈ 20–40 %). Der Endboss ist eine echte Hürde.
+Ziel der Abstimmung: Zufällige Decks gewinnen einen Lauf (6 Akte) selten (≈ 15–20 %), gut gebaute Decks deutlich öfter (≈ 20–40 %, je Startdeck 18–43 %). Der Endboss ist eine echte Hürde.
 
 Ein Mensch mit Shop, Rast und gemischtem Deck schneidet besser ab als der Bot.

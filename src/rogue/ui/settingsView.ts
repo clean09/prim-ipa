@@ -38,8 +38,8 @@ export function showSettings(extra: { label: string; run: () => void }[] = []) {
       slider(L('Effekte', 'Effects'), 'sfx', '✦'),
       h('div', { class: 'sfs-h' }, L('Grafik', 'Graphics')),
       seg('gfx', [['high', L('Hoch', 'High')], ['mid', L('Mittel', 'Medium')], ['low', L('Niedrig', 'Low')]], v =>
-        v === 'high' ? L('Relief und Struktur auf Symbolen und Gegnern, bewegter Fotohimmel, volle Teilchen.', 'Relief and texture on symbols and enemies, moving photo sky, full particles.')
-          : v === 'mid' ? L('Walzen ohne Relief (flüssigeres Drehen), sonst wie Hoch.', 'Reels without relief (smoother spins), otherwise like High.')
+        v === 'high' ? L('Lebende Gegner mit allen Gliedmaßen-Bewegungen, Himmel in voller Auflösung. Für starke Android-Handys und PCs.', 'Living enemies with full limb motion, full-resolution sky. For strong Android phones and PCs.')
+          : v === 'mid' ? L('Empfohlen fürs iPhone: gleiche Details, aber Motive werden einmal vorberechnet – Gegner atmen, blinzeln und wiegen sich.', 'Recommended for iPhone: same detail, but art is pre-rendered once – enemies breathe, blink and sway.')
             : L('Für ältere Handys: keine Filter, ruhender Himmel, halbe Teilchen.', 'For older phones: no filters, still sky, half the particles.')),
       h('div', { class: 'sfs-h' }, L('Spielgefühl', 'Feel')),
       seg('fast', [[false, L('Normales Tempo', 'Normal pace')], [true, L('Schnell', 'Fast')]], v => v ? L('Walzen und Gegnerzüge laufen fast doppelt so schnell.', 'Reels and enemy turns run almost twice as fast.') : L('Zeit für Spannung: Walzen laufen aus, Gegner holen aus.', 'Time for suspense: reels wind down, enemies wind up.')),

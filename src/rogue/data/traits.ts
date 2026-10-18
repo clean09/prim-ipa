@@ -48,11 +48,24 @@ export const TRAITS_OF: Record<string, string[]> = {
   leuchtturm: ['regen', 'instabil'], zwillingspulsar: ['taktgeber', 'schildbrecher'], leuchtfeuer: ['strahlfest', 'sproede'], magnetar: ['schildbrecher', 'panzer', 'leitend'],
   // Ereignishorizont
   schattenmotte: ['leitend'], spaghettiwurm: ['regen'], horizontauge: ['unbeugsam'], gravqualle: ['instabil'], leerenjaeger: ['ausweichend'],
-  akkretion: ['panzer', 'strahlempf'], zeitwaechter: ['unbeugsam', 'taktgeber'], gargantua: ['regen', 'sproede', 'schildbrecher'], uhrmacher: ['unbeugsam', 'taktgeber', 'dornen'],
+  akkretion: ['panzer', 'strahlfest'], zeitwaechter: ['panzer', 'taktgeber'], gargantua: ['regen', 'sproede', 'schildbrecher'], uhrmacher: ['regen', 'taktgeber', 'dornen'],
   // Kern
   sternenfresser: ['regen'], kernkristall: ['panzer'], quasarwaechter: ['strahlfest'], plasmaschwarm: ['dornen'], materiegolem: ['panzer', 'instabil'],
-  sternenschmied: ['dornen', 'sproede'], zwillingssonne: ['strahlfest', 'leitend'], sagittarius: ['regen', 'panzer', 'resonant'], sternenmutter: ['strahlfest', 'unbeugsam', 'goldgierig'],
+  sternenschmied: ['dornen', 'frostaura'], zwillingssonne: ['strahlfest', 'leitend'], sagittarius: ['regen', 'panzer', 'resonant'], sternenmutter: ['strahlfest', 'unbeugsam', 'goldgierig'],
+  // Schiffsgrab von Kesh – Schrott & Diebe: Gilde wird bestohlen, Glut und Rammstöße knacken die Wracks
+  wrackgeier: ['langfinger'], bergedrohne: ['panzer', 'instabil'], rostkrake: ['sproede'], geisterlotse: ['ausweichend', 'leitend'], nietenschwarm: ['aufgeblaeht'],
+  abwrackkoloss: ['panzer', 'instabil'], ossa: ['unbeugsam', 'goldgierig'], werftmutter: ['panzer', 'instabil', 'resonant'], reparaturdrohne: ['sproede'],
+  flaggschiff: ['schildbrecher', 'taktgeber', 'sproede'],
+  // Lebendes Riff – heilt sich: langsame Decks verlieren, Isotope und Schwärme glänzen
+  glutpolyp: ['regen', 'aufgeblaeht'], sternhai: ['dornen'], leuchtmuraene: ['strahlempf'], sporenqualle: ['strahlfest'], putzerschwarm: ['aufgeblaeht', 'strahlempf'],
+  riffwaechter: ['regen', 'frostaura'], sternangler: ['langfinger', 'taktgeber'], riffmutter: ['regen', 'aufgeblaeht', 'strahlempf'], schlund: ['schildbrecher', 'sproede', 'taktgeber'],
+  // Thal’Ora – Kristall und Glyphen: Panzer gegen Schwärme, aber spröde für Glut, resonant für den Chor
+  kristallwaechter: ['panzer', 'sproede'], lichtrochen: ['ausweichend'], herzhueterin: ['strahlfest', 'resonant'], glyphenwurm: ['unbeugsam'], laternenschwarm: ['dornen', 'aufgeblaeht'],
+  koenigswache: ['panzer', 'instabil'], nauile: ['frostaura', 'resonant'], leviathan: ['panzer', 'sproede', 'taktgeber'], herzstein: ['strahlfest', 'resonant', 'leitend'],
+  // Sturm von Vhar – Hitze und Tempo: Uhrwerk und Leere im Vorteil
+  blitzrochen: ['ausweichend', 'taktgeber'], sturmauge: ['leitend'], gewitterqualle: ['strahlempf'], wolkenwal: ['regen', 'instabil'], ionenschwarm: ['dornen', 'aufgeblaeht'],
+  rhaz: ['schildbrecher', 'taktgeber'], ixa: ['frostaura', 'leitend'], sturmkoenig: ['schildbrecher', 'taktgeber', 'leitend'], hydra: ['regen', 'aufgeblaeht'], hydrakopf: ['sproede'],
   // Der Rand
-  architekt: ['unbeugsam', 'schildbrecher', 'resonant'], spiegel: ['dornen'],
+  architekt: ['schildbrecher', 'goldgierig', 'strahlfest', 'taktgeber'], spiegel: ['dornen'],
 };
 export const traitsOf = (id: string) => TRAITS_OF[id] ?? [];

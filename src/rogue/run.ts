@@ -11,7 +11,7 @@ import { level, packUnlocked, track, unlock } from './meta';
 import { hashSeed, pick, rngOf, shuffle, weighted } from './rng';
 import { MapNode, NodeKind, Outcome, Rarity, Run, RunCtx, SymInst } from './types';
 
-export const ROWS = 11;
+export const ROWS = 14;
 export const COLS = 4;
 export const REEL_MAX = 9;
 
@@ -23,10 +23,10 @@ export function newRun(ship: string, seed: string, asc = 0, o: { daily?: string;
     stats: { kills: 0, elites: 0, bosses: 0, dmg: 0, maxHit: 0, jackpots: 0, synergies: 0, spins: 0, floors: 0, overheats: 0, slotJackpots: 0, goldWon: 0 },
     ascension: asc, daily: o.daily, weekly: o.weekly, mutators: o.mutators ?? [], heatBonus: sh.heatMax - 6, spinBonus: sh.spins - 3, mods: {}, startedAt: Date.now(),
   };
-  // Sektoren: je Stufe einer der freigeschalteten; nach dem ersten Sieg zusätzlich „Der Rand“
+  // Sechs Akte: je Stufe 1–5 einer der freigeschalteten Sektoren, zum Schluss immer „Der Rand“
   const r = rngOf(run);
-  for (const tier of [1, 2, 3] as const) run.sectors.push(pick(r, SECTORS.filter(s => s.tier === tier && packUnlocked(s.pack))).id);
-  if (packUnlocked('s-rand')) run.sectors.push('rand');
+  for (const tier of [1, 2, 3, 4, 5] as const) run.sectors.push(pick(r, SECTORS.filter(s => s.tier === tier && packUnlocked(s.pack))).id);
+  run.sectors.push('rand');
   // Talente
   run.maxHp += 6 * level('t-huelle'); run.hp = run.maxHp;
   run.gold += 25 * level('t-gold');
@@ -53,12 +53,14 @@ export function newRun(ship: string, seed: string, asc = 0, o: { daily?: string;
 }
 
 export const sectorOf = (run: Run) => run.sectors[Math.min(run.act, run.sectors.length) - 1];
+/** Nach diesen Akten legt man in einem Hafen an (Händler, Werkstatt, Kantine, Kopfgeld …). */
+export const PORT_AFTER = [2, 4];
 export const lastAct = (run: Run) => run.sectors.length;
 
 // ------------------------------------------------------------------------------------------- Sternenkarte
 export function genMap(run: Run): MapNode[] {
   const r = rngOf(run);
-  const rows = run.act === 4 ? 6 : ROWS;
+  const rows = SECTORS.find(s => s.id === sectorOf(run))?.tier === 6 ? 9 : ROWS;
   const grid: (MapNode | null)[][] = Array.from({ length: rows }, () => Array(COLS).fill(null));
   const nodes: MapNode[] = [];
   const get = (row: number, col: number) => {
@@ -78,15 +80,20 @@ export function genMap(run: Run): MapNode[] {
   const boss: MapNode = { id: nodes.length, row: rows - 1, col: 1.5, kind: 'boss', next: [] };
   nodes.push(boss);
   for (const n of nodes) if (n.row === rows - 2) n.next = [boss.id];
-  const casinoW = run.mutators.includes('casino') ? 18 : 9;
+  const casinoW = run.mutators.includes('casino') ? 14 : 7;
   for (const n of nodes) {
     if (n.kind === 'boss') continue;
     if (n.row === 0) n.kind = 'fight';
     else if (n.row === Math.floor(rows / 2)) n.kind = 'chest';
     else if (n.row === rows - 2) n.kind = 'rest';
-    else n.kind = weighted<NodeKind>(r, [['fight', 42], ['event', 20], ['elite', n.row >= 3 ? 12 : 0], ['shop', n.row >= 2 ? 8 : 0], ['casino', n.row >= 2 ? casinoW : 0], ['rest', n.row >= 4 && n.row !== rows - 3 ? 7 : 0]]);
+    else n.kind = weighted<NodeKind>(r, [['fight', 42], ['event', 20], ['elite', n.row >= 4 ? 12 : 0], ['shop', n.row >= 1 ? 13 : 0], ['casino', n.row >= 2 ? casinoW : 0], ['rest', n.row >= 5 && n.row !== rows - 3 ? 6 : 0]]);
   }
   for (const n of nodes) for (const k of n.next) { const m = nodes[k]; if (m.kind === n.kind && ['shop', 'casino', 'rest', 'elite'].includes(m.kind) && m.row < rows - 2) m.kind = 'fight'; }
+  // Ozzo legt sicher zweimal je Akt an: früh (zum Aufbauen) und vor der Werkstatt (vor dem Boss)
+  for (const row of [3, rows - 3]) {
+    const inRow = nodes.filter(n => n.row === row && n.kind !== 'boss');
+    if (inRow.length && !inRow.some(n => n.kind === 'shop')) pick(r, inRow).kind = 'shop';
+  }
   return nodes;
 }
 export const reachable = (run: Run): number[] => (run.at < 0 ? run.map.filter(n => n.row === 0).map(n => n.id) : run.map[run.at].next);

@@ -34,11 +34,11 @@ export const LINES: [number, number][][] = [
 
 /** Zentrale Balance (per tools/sternenfall-sim.ts abgestimmt): Lebenspunkte je Gegnerstufe, Gegnerschaden. */
 export const BAL = {
-  hp: { normal: 4.4, elite: 3.25, boss: 2.1, minion: 2.4, final: 1.1 } as Record<string, number>,
+  hp: { normal: 4.65, elite: 3.35, boss: 2.1, minion: 2.4, final: 1.1 } as Record<string, number>,
   dmg: { normal: 2.4, elite: 2.1, boss: 2, minion: 2.2, final: 1.75 } as Record<string, number>,
   foeBlock: 2,
   /** Sanfte Kurve je Sektorstufe 1–4 (Lebenspunkte, Schaden). */
-  tierHp: [0.85, 1, 1.05, 1.1], tierDmg: [1, 1.05, 0.9, 1],
+  tierHp: [0.85, 1, 1.12, 1.18, 1.3, 1.22], tierDmg: [1, 1, 1.05, 1, 0.95, 1],
   foeDmg: (id?: string) => (id ? BAL.dmg[ENEMY[id]?.tier] ?? 2 : 2),
 };
 
@@ -66,7 +66,7 @@ export class Reactor implements Ctx {
   constructor(run: Run, ids: string[], public ui: ReactorUi, kind: 'fight' | 'elite' | 'boss') {
     this.run = run; this.rnd = rngOf(run); this.rc = runCtx(run);
     this.boss = kind === 'boss';
-    this.tier = Math.min(4, Math.max(1, SECTOR[sectorOf(run)]?.tier ?? 1));
+    this.tier = Math.min(6, Math.max(1, SECTOR[sectorOf(run)]?.tier ?? 1));
     this.groupHp = ids.length >= 3 ? 0.62 : ids.length === 2 ? 0.75 : 1;   // Gruppen: weniger Leben je Mitglied
     for (const id of ids) this.summon(id);
     this.groupHp = 1;
@@ -145,6 +145,7 @@ export class Reactor implements Ctx {
     this.fill();
     this.addHeat(heat);
     if (this.spin >= 3) for (const f of this.alive()) if (this.has(f, 'taktgeber')) this.pure(f, 6);
+    if (this.spin >= 3 && this.cl.uhrwerk >= 2) for (const f of this.alive()) this.pure(f, 3 + this.spin);   // Uhrwerk II: der Takt schlägt zu
     return [...this.offs];
   }
 
@@ -243,8 +244,8 @@ export class Reactor implements Ctx {
       if (f.dead || this.over) continue;
       if (this.has(f, 'regen') && f.hp < f.max) { const g = Math.max(1, Math.round(f.max * 0.06)); f.hp = Math.min(f.max, f.hp + g); this.ui.emit({ t: 'foeNote', uid: f.uid, text: `+${g}`, good: false }); }
       if (f.rad > 0) { const rd = f.rad * (this.cl.isotop >= 3 ? 2 : 1) * (this.has(f, 'strahlempf') ? 2 : 1); f.hp -= rd; this.ui.emit({ t: 'rad', uid: f.uid, n: rd }); if (this.cl.isotop < 2) f.rad--; if (f.hp <= 0) { this.checkDeaths(); await this.ui.pause(220); continue; } }
+      f.block = 0; f.turn++;                                   // alter Schild verfällt – Boni aus onTurnStart bleiben
       ENEMY[f.id].onTurnStart?.(f, this);
-      f.block = 0; f.turn++;
       if (f.stun > 0) { f.stun--; this.log(L(`${ENEMY[f.id].name[0]} ist in Stase.`, `${ENEMY[f.id].name[1]} is in stasis.`)); await this.ui.pause(300); continue; }
       this.ui.emit({ t: 'enemyAct', uid: f.uid });
       await this.ui.pause(240);
@@ -308,7 +309,7 @@ export class Reactor implements Ctx {
     const f = this.firing;
     const arch = f ? ARCH_OF[f.sym.id] : undefined;
     if (f && f.sym.tag === 'waffe' && this.cl.glut >= 2 && !this.anyTrait('frostaura')) n += this.heat;
-    if (f && this.cl.gilde >= 2) n += Math.min(6, Math.floor(this.run.gold / 30));
+    if (f && this.cl.gilde >= 2) n += Math.min(8, Math.floor(this.run.gold / 25));
     const swarm = arch === 'schwarm' && ((o.times ?? 1) > 1 || o.random || o.all);
     if (swarm && this.cl.schwarm >= 1) n += 1;
     if (swarm && this.cl.schwarm >= 2 && (o.times ?? 1) > 1) o = { ...o, times: (o.times ?? 1) + 1 };
@@ -372,7 +373,7 @@ export class Reactor implements Ctx {
     if (this.over) return true;
     if (!this.alive().length) {
       this.over = 'win';
-      if (this.cl.gilde >= 3) { const z = Math.min(30, Math.floor(this.run.gold * 0.1)); if (z > 0) { this.gainGold(z); this.log(L(`Gildenzinsen: +${z}`, `Guild interest: +${z}`)); } }
+      if (this.cl.gilde >= 3) { const z = Math.min(40, Math.floor(this.run.gold * 0.1)); if (z > 0) { this.gainGold(z); this.log(L(`Gildenzinsen: +${z}`, `Guild interest: +${z}`)); } }
       return true;
     }
     return false;

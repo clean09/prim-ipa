@@ -7,6 +7,8 @@ import { reducedMotion } from '../core/theme';
 
 // ------------------------------------------------------------------------------------------- Partikel
 const MAX = 900;
+const colCache = new Map<number, string>();
+const hexCol = (c: number) => { let s = colCache.get(c); if (!s) { s = '#' + c.toString(16).padStart(6, '0'); colCache.set(c, s); } return s; };
 export class Particles {
   private x = new Float32Array(MAX); private y = new Float32Array(MAX); private vx = new Float32Array(MAX); private vy = new Float32Array(MAX);
   private life = new Float32Array(MAX); private max = new Float32Array(MAX); private size = new Float32Array(MAX); private col = new Uint32Array(MAX);
@@ -14,7 +16,7 @@ export class Particles {
   timeScale = 1;
   constructor(readonly canvas: HTMLCanvasElement) {
     this.g = canvas.getContext('2d')!;
-    const fit = () => { const d = Math.min(2, devicePixelRatio || 1); canvas.width = canvas.clientWidth * d; canvas.height = canvas.clientHeight * d; this.g.setTransform(d, 0, 0, d, 0, 0); };
+    const fit = () => { const d = Math.min(sfs().gfx === 'high' ? 2 : 1.5, devicePixelRatio || 1); canvas.width = canvas.clientWidth * d; canvas.height = canvas.clientHeight * d; this.g.setTransform(d, 0, 0, d, 0, 0); };
     fit(); new ResizeObserver(fit).observe(canvas);
   }
   /** Explosion an (x, y) in Bildschirmpunkten relativ zur Leinwand. */
@@ -34,19 +36,20 @@ export class Particles {
     const g = this.g, w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     g.clearRect(0, 0, w, h);
     g.globalCompositeOperation = 'lighter';
-    let alive = 0;
+    let alive = 0, lastC = -1;
     for (let i = 0; i < this.n; i++) {
       if (this.life[i] <= 0) continue;
       this.life[i] -= dt; this.vy[i] += 420 * dt; this.vx[i] *= 1 - 1.5 * dt;
       this.x[i] += this.vx[i] * dt; this.y[i] += this.vy[i] * dt;
       const a = Math.max(0, this.life[i] / this.max[i]);
       const c = this.col[i];
-      g.fillStyle = `rgba(${c >> 16},${(c >> 8) & 255},${c & 255},${a})`;
+      if (c !== lastC) { lastC = c; g.fillStyle = hexCol(c); }
+      g.globalAlpha = a;
       const s = this.size[i] * (0.4 + a);
       g.fillRect(this.x[i] - s / 2, this.y[i] - s / 2, s, s);
       alive++;
     }
-    g.globalCompositeOperation = 'source-over';
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     if (!alive) { this.n = 0; this.raf = 0; g.clearRect(0, 0, w, h); return; }
     this.raf = requestAnimationFrame(this.tick);
   };

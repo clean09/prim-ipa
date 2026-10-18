@@ -7,7 +7,7 @@ import { MOD } from '../data/modules';
 import { CAST, CHAPTERS } from '../data/story';
 import { SHIP } from '../data/ships';
 import { ARCH_OF, CONST, CONSTELLATIONS, THRESH, constCounts, nextThresh } from '../data/constellations';
-import { ornament, portraitSvg, shipSvg, symbolSvg } from '../art';
+import { ornament, portraitSvg, shipHtml, symbolHtml } from '../art';
 import { REEL_MAX, rarityColor } from '../run';
 import { Run, SymInst } from '../types';
 
@@ -29,7 +29,7 @@ export function cardEl(id: string, lv = 1, opts: { big?: boolean; small?: boolea
   }
   const el = h('div', { class: `sc r-${d.rarity}${opts.big ? ' big' : ''}${opts.small ? ' small' : ''}${d.tag === 'fluch' ? ' junk' : ''}`, style: { '--rc': rarityColor(d.rarity), '--tc': tag.color } as any },
     cs ? h('div', { class: 'sc-arch', style: { '--cc': cs.color } as any, title: tx(cs.name) }, cs.icon) : '',
-    h('div', { class: 'sc-art', html: symbolSvg(d.art, d.c1, d.c2) }),
+    h('div', { class: 'sc-art', html: symbolHtml(d.art, d.c1, d.c2) }),
     h('div', { class: 'sc-tag', title: L(tag.de, tag.en) }, d.wild ? '✷' : tag.icon),
     lv > 1 ? h('div', { class: 'sc-lv' }, roman(lv)) : '',
     h('div', { class: 'sc-name' }, tx(d.name)),
@@ -61,7 +61,7 @@ export function moduleEl(id: string, tap = true) {
 export function topBar(run: Run, onReels: () => void, onMenu: () => void) {
   const sh = SHIP[run.ship];
   return h('div', { class: 'sf-top' },
-    h('div', { class: 'sf-ship', html: shipSvg(sh.hull, sh.hue) }),
+    h('div', { class: 'sf-ship', html: shipHtml(sh.hull, sh.hue) }),
     h('div', { class: 'sf-stat hp' }, h('i', { style: { width: `${Math.max(0, run.hp / run.maxHp) * 100}%` } }), h('span', null, `${run.hp}/${run.maxHp}`)),
     h('div', { class: 'sf-stat gold' }, h('i', { class: 'sfc' }), ` ${run.gold}`),
     h('button', { class: 'sf-ib', onclick: onReels, 'aria-label': L('Walzen', 'Reels') }, `⚙ ${run.reels.reduce((s, r) => s + r.length, 0)}`),

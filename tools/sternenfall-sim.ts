@@ -6,7 +6,7 @@ import { Reactor } from '../src/rogue/reactor';
 import { ENEMY, SECTOR } from '../src/rogue/data/enemies';
 import { SYM } from '../src/rogue/data/symbols';
 import { MOD } from '../src/rogue/data/modules';
-import { enterAct, lastAct, moduleOffer, newRun, runCtx, sectorOf, symbolOffer, addModule } from '../src/rogue/run';
+import { PORT_AFTER, enterAct, lastAct, moduleOffer, newRun, runCtx, sectorOf, symbolOffer, addModule, allSymbols } from '../src/rogue/run';
 import { pick, rngOf } from '../src/rogue/rng';
 import { Run } from '../src/rogue/types';
 import { ARCH_OF, constCounts } from '../src/rogue/data/constellations';
@@ -55,6 +55,21 @@ function reward(run: Run, kind: string, pickMode: string, focus?: string) {
   ctx.gainGold(kind === 'boss' ? 75 : kind === 'elite' ? 35 : 18);
 }
 
+/** Händler: kauft mit dem Gold die besten Angebote (≈ 75 je Symbol). */
+function shop(run: Run, pickMode: string, focus?: string) {
+  while (run.gold >= 110) {
+    const offer = symbolOffer(run, 3, 10);
+    const cnt = constCounts(run), top = focus ?? Object.entries(cnt).sort((a, b) => b[1] - a[1])[0]?.[0];
+    const score = (id: string) => RANK[SYM[id].rarity] + (pickMode === 'build' && ARCH_OF[id] === top ? 5 : 0);
+    const best = pickMode === 'random' ? offer[0] : [...offer].sort((a, b) => score(b) - score(a))[0];
+    run.gold -= 75; runCtx(run).addSymbol(best);
+  }
+}
+function upgrade(run: Run) {
+  const s = allSymbols(run).filter(x => x.lv < 3 && SYM[x.id].tag !== 'fluch').sort((a, b) => RANK[SYM[b.id].rarity] - RANK[SYM[a.id].rarity])[0];
+  if (s) s.lv++;
+}
+
 export async function sim(n = 100, o: { ship?: string; asc?: number; smart?: boolean; fights?: number; rand?: boolean; deck?: string; pick?: string } = {}) {
   const backup = { ...localStorage };
   const logs: FightLog[] = [];
@@ -72,17 +87,23 @@ export async function sim(n = 100, o: { ship?: string; asc?: number; smart?: boo
         for (let act = 1; act <= lastAct(run) && !dead; act++) {
           if (act > 1) enterAct(run, act);
           const sec = SECTOR[sectorOf(run)];
-          const plan: ('fight' | 'elite' | 'boss')[] = [...Array(o.fights ?? 5).fill('fight'), 'elite', 'fight', 'boss'];
+          // Ein Akt ≈ 14 Reihen: 7 Kämpfe, 2 Eliten, Händler (Gold → Symbol), Rast vor dem Boss; Schlussakt kürzer
+          const plan: ('fight' | 'elite' | 'boss' | 'shop')[] = sec.tier === 6 ? ['fight', 'fight', 'elite', 'shop', 'fight', 'fight', 'boss']
+            : ['fight', 'fight', 'fight', 'shop', 'fight', 'elite', 'fight', 'fight', 'elite', 'shop', 'fight', 'boss'].slice(0, (o.fights ?? 7) + 5) as any;
+          let k = 0;
           for (const kind of plan) {
-            run.floor++;
+            run.floor++; k++;
+            if (kind === 'shop') { shop(run, o.pick ?? 'rar', o.deck); continue; }
             if (kind === 'boss') run.hp = Math.min(run.maxHp, run.hp + Math.round(run.maxHp * 0.3)); // Rast vor dem Boss
-            const ids = kind === 'boss' ? [pick(r, sec.bosses)] : kind === 'elite' ? pick(r, sec.elite) : pick(r, run.floor <= 3 ? sec.easy : sec.hard);
+            const easy = act === 1 ? k <= 3 : k <= 1;
+            const ids = kind === 'boss' ? [pick(r, sec.bosses)] : kind === 'elite' ? pick(r, sec.elite) : pick(r, easy ? sec.easy : sec.hard);
             const res = await playFight(run, ids, kind, o.smart ?? true);
             logs.push({ sector: sec.id, kind, ids: ids.join('+'), ...res });
             if (!res.won) { dead = true; deaths[ids.join('+')] = (deaths[ids.join('+')] ?? 0) + 1; break; }
             reward(run, kind, o.pick ?? 'rar', o.deck);
           }
           if (!dead) reached.push(act);
+          if (!dead && PORT_AFTER.includes(act)) { upgrade(run); upgrade(run); shop(run, o.pick ?? 'rar', o.deck); }   // Hafen: Schmiede + Basar
         }
         if (!dead) wins++;
       } catch (e) { errors++; if (errs.length < 8) errs.push(String((e as Error).stack ?? e).slice(0, 400)); }
@@ -97,7 +118,7 @@ export async function sim(n = 100, o: { ship?: string; asc?: number; smart?: boo
   };
   return {
     runs: n, wins, winRate: wins / n, errors, errs,
-    actsCleared: [1, 2, 3, 4].map(a => reached.filter(x => x === a).length / n),
+    actsCleared: [1, 2, 3, 4, 5, 6].map(a => reached.filter(x => x === a).length / n),
     acts: group(l => `${l.sector}/${l.kind}`),
     foes: group(l => l.ids),
     deaths: Object.entries(deaths).sort((a, b) => b[1] - a[1]).slice(0, 12),

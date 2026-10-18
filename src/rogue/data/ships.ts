@@ -37,9 +37,9 @@ export const RESEARCH: ResearchNode[] = [
   { id: 'u-amboss', type: 'ship', icon: '⚒️', name: T('Sonnenamboss', 'Sun Anvil'), text: T('Neues Schiff: Hitze und schwere Waffen.', 'New ship: heat and heavy guns.'), cost: () => 760, max: 1, needs: ['u-nachtfalter'] },
   { id: 'u-spirale', type: 'ship', icon: '🌀', name: T('Die Spirale', 'The Spiral'), text: T('Neues Schiff: Wurmlöcher und Kosmos.', 'New ship: wormholes and cosmos.'), cost: () => 1300, max: 1, needs: ['u-amboss'] },
   // Sektoren (zweite Varianten je Stufe)
-  { id: 's-frost', type: 'sector', icon: '❄️', name: T('Frostring von Boreal', 'Frost Ring of Boreal'), text: T('Neuer Sektor (Stufe 1) mit 2 neuen Bossen.', 'New sector (tier 1) with 2 new bosses.'), cost: () => 300, max: 1 },
-  { id: 's-pulsar', type: 'sector', icon: '🗼', name: T('Das Leuchtfeuer-Feld', 'The Beacon Field'), text: T('Neuer Sektor (Stufe 2) mit 2 neuen Bossen.', 'New sector (tier 2) with 2 new bosses.'), cost: () => 650, max: 1, needs: ['s-frost'] },
-  { id: 's-kern', type: 'sector', icon: '☀️', name: T('Der Galaktische Kern', 'The Galactic Core'), text: T('Neuer Sektor (Stufe 3) mit 2 neuen Bossen.', 'New sector (tier 3) with 2 new bosses.'), cost: () => 1100, max: 1, needs: ['s-pulsar'] },
+  { id: 's-frost', type: 'sector', icon: '❄️', name: T('Frostring von Boreal', 'Frost Ring of Boreal'), text: T('Neuer Sektor (Akt 1) mit 2 neuen Bossen.', 'New sector (act 1) with 2 new bosses.'), cost: () => 300, max: 1 },
+  { id: 's-pulsar', type: 'sector', icon: '🗼', name: T('Das Leuchtfeuer-Feld', 'The Beacon Field'), text: T('Neuer Sektor (Akt 3) mit 2 neuen Bossen.', 'New sector (act 3) with 2 new bosses.'), cost: () => 650, max: 1, needs: ['s-frost'] },
+  { id: 's-kern', type: 'sector', icon: '☀️', name: T('Der Galaktische Kern', 'The Galactic Core'), text: T('Neuer Sektor (Akt 5) mit 2 neuen Bossen.', 'New sector (act 5) with 2 new bosses.'), cost: () => 1100, max: 1, needs: ['s-pulsar'] },
   // Symbolpakete
   { id: 'p-arsenal', type: 'pack', icon: '🎯', name: T('Arsenal', 'Arsenal'), text: T('Schienenkanone, Phaserkranz', 'Railgun, Phaser Crown'), cost: () => 260, max: 1 },
   { id: 'p-handel', type: 'pack', icon: '🪙', name: T('Handelsgilde', 'Trade Guild'), text: T('Ringplaneten-Bank, Pfauenkomet', 'Ring Planet Bank, Peacock Comet'), cost: () => 320, max: 1 },

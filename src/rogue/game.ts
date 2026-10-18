@@ -11,6 +11,7 @@ import { MUTATORS, RESEARCH, SHIP, SHIPS } from './data/ships';
 import { CAST, CHAPTERS } from './data/story';
 import { CONSTELLATIONS } from './data/constellations';
 import { CREDITS } from './data/credits';
+import { PORTS, PORT_VISITS } from './data/ports';
 import { Mood, Sky } from './sky';
 import { warp } from '../ui/warp';
 import { attachFeel, attachIcons } from './ui/feel';
@@ -27,13 +28,13 @@ import {
 } from './meta';
 import { dailySeed, hashSeed, newSeed, pick, rngOf, step, weighted } from './rng';
 import {
-  COLS, addModule, applyOutcomes, enterAct, lastAct, loadRun, moduleOffer, modulePrice, newRun, payReroll, reachable, removeCost, removeSymbol,
+  COLS, PORT_AFTER, addModule, applyOutcomes, enterAct, lastAct, loadRun, moduleOffer, modulePrice, newRun, payReroll, reachable, removeCost, removeSymbol,
   rerollCost, runCtx, saveRun, sectorOf, symbolOffer, symbolPrice, upgradeCost,
 } from './run';
 import { EventDef, EventOption, MapNode, Run } from './types';
 import { NODE_ICON, NODE_NAME, cardEl, cardPreview, chooseReel, longPress, pickSymbol, playChapter, portrait, showConsts, showReels, topBar, tx } from './ui/parts';
 import { rules, runFight } from './ui/reactorView';
-import { coinIcon, cornerOrn, dustIcon, enemySvg, frameImg, vineRule, ornament, sectorPattern, shipSvg, symbolSvg } from './art';
+import { coinIcon, cornerOrn, dustIcon, enemyHtml, frameImg, vineRule, ornament, sectorPattern, shipHtml, symbolHtml } from './art';
 
 export class Game {
   run: Run | null = null;
@@ -80,10 +81,10 @@ export class Game {
     // Lebender Himmel: Sektor-Thema + Stimmung der Station
     const sec = this.run ? SECTOR[sectorOf(this.run)] : null;
     const word = cls.split(' ')[0];
-    const mood: Mood = (['hub', 'map', 'fight', 'reward', 'event', 'shop', 'casino', 'rest', 'chest'].includes(word) ? word : word === 'result' ? (cls.includes('won') ? 'won' : 'lost') : 'map') as Mood;
+    const mood: Mood = (['hub', 'map', 'fight', 'reward', 'event', 'shop', 'casino', 'rest', 'chest'].includes(word) ? word : word === 'port' ? 'shop' : word === 'result' ? (cls.includes('won') ? 'won' : 'lost') : 'map') as Mood;
     // Musik je Lage (Kampf wählt selbst, Ergebnis spielt einen Jingle)
-    const mapTrack = ({ guertel: 'map', frost: 'map_frost', orion: 'map_orion', pulsar: 'map_pulsar', horizont: 'map_horizont', kern: 'map_pulsar', rand: 'event' } as const)[(sec?.id ?? 'guertel') as 'guertel'] ?? 'map';
-    const track = ({ hub: 'hub', map: mapTrack, event: 'event', rest: 'event', chest: 'event', reward: mapTrack, shop: 'casino', casino: 'casino' } as const)[word as 'hub'];
+    const mapTrack = ({ guertel: 'map', frost: 'map_frost', werft: 'map', riff: 'map_orion', orion: 'map_orion', pulsar: 'map_pulsar', tiefsee: 'map_frost', sturm: 'map_pulsar', horizont: 'map_horizont', kern: 'map_pulsar', rand: 'event' } as const)[(sec?.id ?? 'guertel') as 'guertel'] ?? 'map';
+    const track = ({ hub: 'hub', map: mapTrack, event: 'event', rest: 'event', chest: 'event', reward: mapTrack, shop: 'casino', casino: 'casino', port: 'hub' } as const)[word as 'hub'];
     if (track) { bgmIntensity(word === 'hub' ? 0.8 : 0.85); bgm(track); }
     if (word !== 'fight') this.sky.set(word === 'hub' ? 'rand' : theme && word === 'map' ? theme : sec?.theme ?? 'rand', mood, word === 'hub' ? undefined : bg ?? sec?.bg);
     if (bg) { this.view.style.setProperty('--bg1', bg[0]); this.view.style.setProperty('--bg2', bg[1]); this.view.style.setProperty('--pat', sectorPattern(theme ?? 'x', '#c9a45c')); }
@@ -131,7 +132,7 @@ export class Game {
       const r = this.run;
       body.append(h('div', { class: 'sf-sec' }, L('Laufender Flug', 'Current flight')),
         h('button', { class: 'sf-continue', onclick: () => this.resume() },
-          h('div', { class: 'sf-shipmini', html: shipSvg(SHIP[r.ship].hull, SHIP[r.ship].hue) }),
+          h('div', { class: 'sf-shipmini', html: shipHtml(SHIP[r.ship].hull, SHIP[r.ship].hue) }),
           h('div', null, h('b', null, L('Weiterfliegen', 'Continue')), h('small', null, `${tx(SECTOR[sectorOf(r)].name)} · ${L('Akt', 'Act')} ${r.act}/${lastAct(r)}`), h('small', null, `${L('Hülle', 'Hull')} ${r.hp}/${r.maxHp} · ✦ ${r.gold}`)),
           h('span', null, '›')),
         h('button', { class: 'sf-link small', onclick: async () => { if (await confirmSheet(L('Flug abbrechen?', 'Abandon flight?'), L('Der Lauf endet und wird gewertet.', 'The run ends and is scored.'), L('Abbrechen', 'Abandon'), L('Weiterfliegen', 'Keep flying'))) void this.result(false, L('aufgegeben', 'abandoned')); } }, L('Flug abbrechen', 'Abandon flight')));
@@ -143,7 +144,7 @@ export class Game {
       h('button', { class: 'sf-loadrow', onclick: open }, typeof ic === 'string' ? h('span', { class: 'ic' }, ic) : ic, h('div', null, h('small', null, k), h('b', null, v), sub ? h('em', null, sub) : ''), h('span', { class: 'chev' }, '›'));
     body.append(h('div', { class: 'sf-sec' }, this.run ? L('Neuer Flug', 'New flight') : L('Flug vorbereiten', 'Prepare flight')),
       h('div', { class: 'sf-loadout' },
-        row(h('span', { class: 'ic ship', html: shipSvg(sh.hull, sh.hue) }), L('Schiff', 'Ship'), tx(sh.name), `⛨ ${sh.hp} · ♨ ${sh.heatMax} · ✦ ${sh.gold}`, () => this.pickShip()),
+        row(h('span', { class: 'ic ship', html: shipHtml(sh.hull, sh.hue) }), L('Schiff', 'Ship'), tx(sh.name), `⛨ ${sh.hp} · ♨ ${sh.heatMax} · ✦ ${sh.gold}`, () => this.pickShip()),
         row(h('span', { class: 'ic', style: { background: cs?.color ?? '#c9a45c' } }, cs?.icon ?? '✦'), L('Startdeck', 'Starter deck'), cs ? tx(cs.name) : L('Schiffs-Standard', 'Ship default'), cs ? tx(cs.idea) : L('Ausgewogene Grundausstattung', 'Balanced basics'), () => this.pickDeck()),
         m.ascMax > 0 ? row('☠', L('Gefahr', 'Danger'), this.asc ? `${L('Stufe', 'Level')} ${this.asc}` : L('Normal', 'Normal'), this.asc ? L(`+${this.asc * 8} % Gegner-Hülle · +${this.asc * 20} % Punkte`, `+${this.asc * 8} % enemy hull · +${this.asc * 20} % score`) : '', () => this.pickDanger()) : '',
         h('button', { class: 'sf-go', onclick: () => warpGo(() => this.start(this.ship, seedIn.value.trim().toUpperCase() || newSeed(), this.asc, { deck: this.deck })) },
@@ -173,7 +174,7 @@ export class Game {
     const close = sheet(L('Schiff wählen', 'Choose ship'), h('div', { class: 'sf-pickl' }, SHIPS.map(s => {
       const ok = shipUnlocked(s.id);
       return h('button', { class: 'sf-pickrow' + (this.ship === s.id ? ' on' : '') + (ok ? '' : ' locked'), onclick: () => { if (!ok) { toast(L('Im Forschungslabor freischalten.', 'Unlock in the research lab.')); return; } this.ship = s.id; close(); this.hub('play'); } },
-        h('span', { class: 'ic ship', html: shipSvg(s.hull, s.hue) }), h('div', null, h('b', null, tx(s.name)), h('small', null, ok ? tx(s.text) : L('🔒 Im Labor erforschen', '🔒 Research in the lab')), ok ? h('em', null, `⛨ ${s.hp} · ♨ ${s.heatMax} · ✦ ${s.gold}`) : ''));
+        h('span', { class: 'ic ship', html: shipHtml(s.hull, s.hue) }), h('div', null, h('b', null, tx(s.name)), h('small', null, ok ? tx(s.text) : L('🔒 Im Labor erforschen', '🔒 Research in the lab')), ok ? h('em', null, `⛨ ${s.hp} · ♨ ${s.heatMax} · ✦ ${s.gold}`) : ''));
     })));
   }
   private pickDeck() {
@@ -251,12 +252,12 @@ export class Game {
     if (pct >= 50) unlock('codex50');
     body.append(h('div', { class: 'sf-sec' }, `${L('Kodex', 'Codex')} · ${pct} %`), h('div', { class: 'sf-codex' }, foes.map(e => {
       const ok = m.codex.foes.includes(e.id);
-      const el = h('div', { class: 'sf-cx' + (ok ? '' : ' unk') + (e.tier === 'boss' || e.tier === 'final' ? ' boss' : '') }, h('div', { html: ok ? enemySvg(e.look) : '' }), h('small', null, ok ? tx(e.name) : '???'));
-      if (ok) el.addEventListener('click', () => sheet(tx(e.name), h('div', { class: 'sf-foebig', html: enemySvg(e.look) }), h('p', { class: 'small' }, e.passive ? tx(e.passive) : ''), h('p', { class: 'muted small' }, `${L('Hülle', 'Hull')} ${e.hp[0]}–${e.hp[1]}`)));
+      const el = h('div', { class: 'sf-cx' + (ok ? '' : ' unk') + (e.tier === 'boss' || e.tier === 'final' ? ' boss' : '') }, h('div', { html: ok ? enemyHtml(e.look) : '' }), h('small', null, ok ? tx(e.name) : '???'));
+      if (ok) el.addEventListener('click', () => sheet(tx(e.name), h('div', { class: 'sf-foebig', html: enemyHtml(e.look) }), h('p', { class: 'small' }, e.passive ? tx(e.passive) : ''), h('p', { class: 'muted small' }, `${L('Hülle', 'Hull')} ${e.hp[0]}–${e.hp[1]}`)));
       return el;
     })), h('div', { class: 'sf-codex syms' }, syms.map(s => {
       const ok = m.codex.syms.includes(s.id);
-      const el = h('div', { class: 'sf-cx' + (ok ? '' : ' unk') }, h('div', { html: ok ? symbolSvg(s.art, s.c1, s.c2) : '' }), h('small', null, ok ? tx(s.name) : '???'));
+      const el = h('div', { class: 'sf-cx' + (ok ? '' : ' unk') }, h('div', { html: ok ? symbolHtml(s.art, s.c1, s.c2) : '' }), h('small', null, ok ? tx(s.name) : '???'));
       if (ok) el.addEventListener('click', () => cardPreview(s.id));
       return el;
     })));
@@ -300,7 +301,7 @@ export class Game {
     card.classList.add('out'); setTimeout(() => card.remove(), 600);
     const m = meta();
     if (!m.visited.includes(sec.id)) { m.visited.push(sec.id); saveMeta(); }
-    story(`visit:${sec.id}`);
+    story(`visit:${sec.id}`); story(`act:${run.act}`);
     await this.flushStory();
     this.map(true);
   }
@@ -324,7 +325,7 @@ export class Game {
     const here = run.at >= 0 ? run.map[run.at] : null;
     const pos = (n: MapNode | null) => n ? [(x(n) / W) * 100, y(n)] as const : [50, H - 4] as const;
     const sh = SHIP[run.ship];
-    const ship = h('div', { class: 'sf-mapship', html: shipSvg(sh.hull, sh.hue) });
+    const ship = h('div', { class: 'sf-mapship', html: shipHtml(sh.hull, sh.hue) });
     { const [px, py] = pos(here); ship.style.left = `${px}%`; ship.style.top = `${py}px`; }
     const fly = (n: MapNode) => {
       mapEl.dataset.flying = '1';
@@ -361,6 +362,7 @@ export class Game {
 
   resume() {
     const run = this.run!;
+    if (run.port) { this.port(); return; }
     const cur = run.at >= 0 ? run.map[run.at] : null;
     if (cur && !cur.done) this.enter(cur, false); else this.map();
   }
@@ -379,16 +381,22 @@ export class Game {
       case 'chest': this.chest(); break;
     }
   }
-  private done() { const run = this.run!; if (run.at >= 0) run.map[run.at].done = true; this.save(); this.map(); }
+  private done() {
+    const run = this.run!;
+    if (run.port) { if (run.port.cur) { run.port.used.push(run.port.cur); run.port.cur = undefined; } this.save(); this.port(); return; }
+    if (run.at >= 0) run.map[run.at].done = true; this.save(); this.map();
+  }
 
   // =========================================================================================== Kampf
   private async fight(kind: 'fight' | 'elite' | 'boss') {
     const run = this.run!;
     const sec = SECTOR[sectorOf(run)];
     const r = rngOf(run);
-    const ids = kind === 'boss' ? [pick(r, sec.bosses)] : kind === 'elite' ? pick(r, sec.elite) : pick(r, run.floor <= 3 ? sec.easy : sec.hard);
+    const row = !run.port && run.at >= 0 ? run.map[run.at].row : 9;
+    const easy = run.act === 1 ? row <= 3 : row <= 1;
+    const ids = kind === 'boss' ? [pick(r, sec.bosses)] : kind === 'elite' ? pick(r, sec.elite) : pick(r, easy ? sec.easy : sec.hard);
     // Musik nach Bedrohung: kleine Gegner leise-spannend, je stärker desto wuchtiger
-    const threat = kind === 'boss' ? (ids[0] === 'architekt' ? 5 : 4) : kind === 'elite' ? 3 : Math.min(2, sec.tier - 1 + (run.floor > 3 ? 1 : 0) + (ids.length >= 3 ? 1 : 0));
+    const threat = kind === 'boss' ? (ids[0] === 'architekt' ? 5 : 4) : kind === 'elite' ? 3 : Math.min(2, Math.floor((sec.tier - 1) / 2) + (easy ? 0 : 1) + (ids.length >= 3 ? 1 : 0));
     bgm((['fight3', 'fight', 'fight2', 'elite', 'boss', 'final'] as const)[threat]);
     bgmIntensity([0.35, 0.55, 0.75, 0.9, 1, 1][threat]);
     this.clear('fight');
@@ -401,10 +409,10 @@ export class Game {
     if (kind === 'boss') {
       run.stats.bosses++; track('bosses', 1);
       const m = meta(); if (!m.bossKills.includes(ids[0])) { m.bossKills.push(ids[0]); saveMeta(); }
-      unlock(`boss${Math.min(3, sec.tier)}`);
-      if (sec.tier === 4) unlock('final');
+      unlock(`boss${Math.min(3, Math.ceil(sec.tier / 2))}`);
+      if (sec.tier === 6) unlock('final');
       if (run.ship !== 'kreuzer') unlock(`ship-${run.ship}`);
-      story(`boss:${sec.id}`); if (sec.tier === 4) story('final');
+      story(`boss:${sec.id}`); if (sec.tier === 6) story('final');
     }
     this.save();
     this.reward(kind);
@@ -415,7 +423,8 @@ export class Game {
     const run = this.run!;
     this.clear('reward', this.sectorBg());
     const r = rngOf(run);
-    const gold = goldFor(kind, r);
+    const gold = goldFor(kind, r) + (run.mods.bounty ? 50 : 0);
+    if (run.mods.bounty) run.mods.bounty = 0;
     let goldTaken = false, symTaken = false;
     let offer = symbolOffer(run, 3, kind === 'boss' ? 60 : kind === 'elite' ? 15 : 0);
     const mods = kind === 'elite' ? moduleOffer(run, 1) : kind === 'boss' && run.act < lastAct(run) ? moduleOffer(run, 3, undefined, 25) : [];
@@ -460,7 +469,7 @@ export class Game {
           h('button', { class: 'sf-btn ghost', onclick: () => { symTaken = true; render(); } }, L('Überspringen', 'Skip'))));
       }
       if (goldTaken && symTaken && !mods.length) box.append(h('button', { class: 'sf-go', onclick: () => void this.afterReward(kind) },
-        h('b', null, kind === 'boss' ? (run.act >= lastAct(run) ? L('Zum Ende der Reise', 'To the journey’s end') : L('Sprung in den nächsten Sektor', 'Jump to the next sector')) : L('Weiterfliegen', 'Fly on'))));
+        h('b', null, kind === 'boss' ? (run.act >= lastAct(run) ? L('Zum Ende der Reise', 'To the journey’s end') : PORT_AFTER.includes(run.act) ? L('Kurs auf den Hafen', 'Set course for port') : L('Sprung in den nächsten Sektor', 'Jump to the next sector')) : run.port ? L('Zurück in den Hafen', 'Back to port') : L('Weiterfliegen', 'Fly on'))));
     };
     render();
   }
@@ -468,6 +477,13 @@ export class Game {
     const run = this.run!;
     if (kind === 'boss') {
       if (run.act >= lastAct(run)) { void this.result(true); return; }
+      if (PORT_AFTER.includes(run.act) && !run.port) {
+        run.port = { n: PORT_AFTER.indexOf(run.act) + 1, used: [] };
+        story(`port:${run.port.n}`); this.save();
+        await this.flushStory();
+        this.port(true);
+        return;
+      }
       enterAct(run, run.act + 1);
       if (run.act === 2 && run.reels.flat().length <= 13) unlock('lean');
       this.save();
@@ -500,9 +516,11 @@ export class Game {
   // =========================================================================================== Begegnungen
   private event() {
     const run = this.run!;
-    const tier = SECTOR[sectorOf(run)].tier;
-    const pool = EVENTS.filter(e => e.act === 0 || e.act === Math.min(3, tier));
-    this.renderEvent(pick(rngOf(run), pool));
+    const sec = SECTOR[sectorOf(run)];
+    const act = [0, 1, 1, 2, 2, 3, 3][sec.tier];
+    const pool = run.port ? EVENTS.filter(e => e.port) : EVENTS.filter(e => !e.port && (e.sector ? e.sector === sec.id : e.act === 0 || e.act === act));
+    // Sektor-eigene Begegnungen doppelt gewichtet
+    this.renderEvent(weighted(rngOf(run), pool.map(e => [e, e.sector ? 3 : 1] as [EventDef, number])));
   }
   private castIn(ev: EventDef) {
     const t = (ev.title[0] + ' ' + ev.text[0]).toLowerCase();
@@ -598,11 +616,12 @@ export class Game {
   }
 
   // =========================================================================================== Ozzos Basar
-  private shop() {
+  private shop(big = false) {
     const run = this.run!;
     const r = rngOf(run);
-    let wares = symbolOffer(run, 6, 10).map(id => ({ id, price: symbolPrice(run, SYM[id].rarity, r), sold: false }));
-    const mods = [...moduleOffer(run, 2), ...moduleOffer(run, 1, 'cursed')].map(id => ({ id, price: Math.round(modulePrice(run, MOD[id].rarity, r) * (MOD[id].cursed ? 0.6 : 1)), sold: false }));
+    const disc = big ? 0.85 : 1, nW = big ? 9 : 6;
+    let wares = symbolOffer(run, nW, big ? 25 : 10).map(id => ({ id, price: Math.round(symbolPrice(run, SYM[id].rarity, r) * disc), sold: false }));
+    const mods = [...moduleOffer(run, big ? 3 : 2), ...moduleOffer(run, 1, 'cursed')].map(id => ({ id, price: Math.round(modulePrice(run, MOD[id].rarity, r) * (MOD[id].cursed ? 0.6 : 1) * disc), sold: false }));
     let removed = false;
     const greet = pick(r, [L('Hrrm. Alles echt, alles fair. Fast alles.', 'Hrrm. All genuine, all fair. Almost all.'), L('Für dich, Kurierin, ein Sonderpreis. Ein sehr besonderer.', 'For you, courier, a special price. A very special one.'), L('Kauf zwei, bezahl drei. Hrrm? Nein, so war das nicht …', 'Buy two, pay for three. Hrrm? No, that’s not right …')]);
     const render = () => {
@@ -619,7 +638,7 @@ export class Game {
         grid.append(el);
       }
       box.append(h('div', { class: 'sf-sec' }, L('Symbole', 'Symbols')), grid,
-        h('button', { class: 'sf-btn', disabled: run.gold < rerollCost(run), onclick: () => { if (payReroll(run)) { wares = symbolOffer(run, 6, 10).map(id => ({ id, price: symbolPrice(run, SYM[id].rarity, r), sold: false })); snd.reel(); render(); } } }, `↻ ${L('Neue Ware', 'Restock')} · ${rerollCost(run) || L('gratis', 'free')}${rerollCost(run) ? ' ✦' : ''}`),
+        h('button', { class: 'sf-btn', disabled: run.gold < rerollCost(run), onclick: () => { if (payReroll(run)) { wares = symbolOffer(run, nW, big ? 25 : 10).map(id => ({ id, price: Math.round(symbolPrice(run, SYM[id].rarity, r) * disc), sold: false })); snd.reel(); render(); } } }, `↻ ${L('Neue Ware', 'Restock')} · ${rerollCost(run) || L('gratis', 'free')}${rerollCost(run) ? ' ✦' : ''}`),
         h('div', { class: 'sf-sec' }, L('Module', 'Modules')));
       for (const x of mods) {
         const md = MOD[x.id];
@@ -778,6 +797,50 @@ export class Game {
     box.append(
       h('button', { class: 'sf-opt', onclick: () => open(false) }, h('b', null, `◈ ${L('Frachtwrack', 'Freighter wreck')}`), h('small', null, L('Sicher: Modul (gewöhnlich/selten) + Taler', 'Safe: module (common/rare) + coins'))),
       h('button', { class: 'sf-opt check', onclick: () => open(true) }, h('b', null, `♜ ${L('Das schwarze Schiff', 'The black ship')}`), h('small', null, L(`${Math.round((0.6 + run.luck) * 100)} %: episches/legendäres Modul + 60 ✦ · sonst Fluch`, `${Math.round((0.6 + run.luck) * 100)} %: epic/legendary module + 60 ✦ · else curse`))));
+  }
+
+  // =========================================================================================== Hafen zwischen den Akten
+  /** Zwischenhalt nach Akt 2 und 4: drei von fünf Stationen besuchen, dann ablegen. */
+  private port(arrive = false) {
+    const run = this.run!;
+    const p = run.port!;
+    const P = PORTS[p.n - 1] ?? PORTS[0];
+    this.clear('port', P.bg, P.theme);
+    const left = PORT_VISITS - p.used.length;
+    const box = h('div', { class: 'sf-panel' });
+    this.view.append(this.top(),
+      h('div', { class: 'sf-evhead' }, h('div', { class: 'ic' }, P.icon), h('h2', null, tx(P.name)), h('div', { html: ornament(220) })),
+      h('p', { class: 'sf-evtext' }, tx(P.text)),
+      h('div', { class: 'sf-portleft' + (left ? '' : ' none') }, left ? L(`Zeit für noch ${left} ${left === 1 ? 'Station' : 'Stationen'}, bevor der Sprungkorridor schließt.`, `Time for ${left} more ${left === 1 ? 'stop' : 'stops'} before the jump corridor closes.`) : L('Der Korridor öffnet sich – Zeit abzulegen.', 'The corridor opens – time to cast off.')),
+      box);
+    for (const st of P.stops) {
+      const used = p.used.includes(st.id);
+      const b = h('button', { class: 'sf-opt sf-portstop' + (used ? ' used' : ''), disabled: used || !left },
+        h('div', { class: 'row', style: { gap: '12px', alignItems: 'center' } }, st.who ? portrait(st.who) : h('span', { class: 'ic' }, st.icon),
+          h('div', null, h('b', null, `${st.icon} ${tx(st.name)}`), h('small', null, used ? L('besucht', 'visited') : tx(st.text)))));
+      b.addEventListener('click', () => { p.cur = st.id; this.save(); snd.open(); this.portStop(st.id); });
+      box.append(b);
+    }
+    box.append(h('button', { class: 'sf-go', onclick: () => {
+      run.port = undefined;
+      enterAct(run, run.act + 1);
+      this.save();
+      void this.actIntro();
+    } }, h('b', null, L('Ablegen', 'Cast off')), h('small', null, L('Weiter in den nächsten Sektor', 'On to the next sector'))));
+    if (arrive) { snd.event(); this.banner(tx(P.name), L('Hafen zwischen den Sektoren', 'Port between sectors')); }
+  }
+  private portStop(id: string) {
+    const run = this.run!;
+    switch (id) {
+      case 'shop': this.shop(true); break;
+      case 'rest': this.rest(); break;
+      case 'casino': this.casino(); break;
+      case 'cantina': this.event(); break;
+      case 'bounty': run.mods.bounty = 1; void this.fight('elite'); break;
+      case 'archive': void (async () => { const ok = await this.removeSym(true); if (ok) toast(L('Die Motten tragen das Symbol davon.', 'The moths carry the symbol away.')); this.done(); })(); break;
+      case 'forge': void (async () => { await this.upgradeSym(true); await this.upgradeSym(true); this.done(); })(); break;
+      default: this.done();
+    }
   }
 
   // =========================================================================================== Ende

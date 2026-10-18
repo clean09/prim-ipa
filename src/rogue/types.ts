@@ -82,9 +82,9 @@ export interface Foe {
 }
 
 export interface SectorDef {
-  id: string; name: Tx; text: Tx; tier: 1 | 2 | 3 | 4;
+  id: string; name: Tx; text: Tx; tier: 1 | 2 | 3 | 4 | 5 | 6;
   /** Hintergrund: zwei Farben + Motiv */
-  bg: [string, string]; theme: 'asteroiden' | 'eis' | 'nebel' | 'pulsar' | 'horizont' | 'kern' | 'rand';
+  bg: [string, string]; theme: 'asteroiden' | 'eis' | 'nebel' | 'pulsar' | 'horizont' | 'kern' | 'rand' | 'werft' | 'riff' | 'tiefsee' | 'sturm';
   easy: string[][]; hard: string[][]; elite: string[][]; bosses: string[];
   pack?: string;
 }
@@ -104,7 +104,8 @@ export interface EventOption {
   check?: { chance: number; raise?: { cost: 'gold' | 'hp'; per: number; add: number; max: number } };
   win: Outcome[]; lose?: Outcome[]; winText?: Tx; loseText?: Tx;
 }
-export interface EventDef { id: string; act: 0 | 1 | 2 | 3; icon: string; title: Tx; text: Tx; options: EventOption[]; pack?: string }
+export interface EventDef { id: string; act: 0 | 1 | 2 | 3; icon: string; title: Tx; text: Tx; options: EventOption[]; pack?: string;
+  /** nur in diesem Sektor */ sector?: string; /** nur in der Hafen-Kantine zwischen den Akten */ port?: boolean }
 
 // ------------------------------------------------------------------------------------------- Schiffe
 export interface ShipDef {
@@ -135,6 +136,8 @@ export interface Run {
   heatBonus: number; spinBonus: number;
   mods: Record<string, number>;
   startedAt: number;
+  /** Zwischenhalt zwischen zwei Akten (Hafen): n = welcher, used = besuchte Stationen, cur = gerade offen */
+  port?: { n: number; used: string[]; cur?: string };
 }
 
 export interface RunCtx {

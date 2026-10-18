@@ -89,6 +89,9 @@ const svg = (vb: string, body: string, cls = '') => `<svg viewBox="${vb}" xmlns=
 type Motif = (g: string, r: string, c1: string, c2: string) => string;
 const ST = `stroke="${IVORY}" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round"`;
 const MOTIFS: Record<string, Motif> = {
+  dreizack: (g, r) => `<path d="M50 92 L50 30" stroke="url(#${g})" stroke-width="5" stroke-linecap="round"/><path d="M30 40 C30 24 34 16 32 10 M70 40 C70 24 66 16 68 10 M30 40 C36 48 64 48 70 40" stroke="url(#${g})" stroke-width="4.5" fill="none" stroke-linecap="round"/><path d="M50 30 L44 18 L50 6 L56 18Z M32 10 l-4 6 l8 0Z M68 10 l-4 6 l8 0Z" fill="url(#${r})" ${ST}/><circle cx="50" cy="52" r="5" fill="#bff8ff" ${ST}/>${whip(56, 80, 0.9, 20)}`,
+  muschel: (g, r) => `<path d="M50 84 C20 84 12 58 18 40 C26 20 74 20 82 40 C88 58 80 84 50 84Z" fill="url(#${r})" ${ST}/>` + [0, 1, 2, 3, 4, 5, 6].map(i => `<path d="M50 84 L${f1(22 + i * 9.3)} ${f1(40 - Math.sin(i / 6 * Math.PI) * 14)}" stroke="${IVORY}" stroke-width=".8" opacity=".75"/>`).join('') + `<path d="M40 84 L44 92 L56 92 L60 84" fill="url(#${g})" ${ST}/><circle cx="50" cy="58" r="6" fill="#fff8f0" ${ST}/>`,
+  herz: (g, r) => `<path d="M50 86 L20 48 C12 34 22 16 36 16 C43 16 48 21 50 26 C52 21 57 16 64 16 C78 16 88 34 80 48Z" fill="url(#${r})" ${ST}/><path d="M50 86 L37 46 L50 26 L63 46Z M20 48 L37 46 M80 48 L63 46" stroke="${IVORY}" stroke-width=".8" fill="none" opacity=".8"/>${star4(50, 44, 11, '#f0ffff')}`,
   laser: (g) => `<path d="M14 72 L66 26" stroke="url(#${g})" stroke-width="7" stroke-linecap="round"/><path d="M14 72 L66 26" stroke="${IVORY}" stroke-width="1.6" stroke-linecap="round"/>${star4(70, 23, 9)}${whip(20, 80, 1.1, -40)}`,
   laser2: (g) => `<path d="M12 64 L62 22 M24 76 L74 34" stroke="url(#${g})" stroke-width="6" stroke-linecap="round"/><path d="M12 64 L62 22 M24 76 L74 34" stroke="${IVORY}" stroke-width="1.3"/>${star4(65, 20, 6)}${star4(77, 32, 6)}`,
   torpedo: (g, r) => `<ellipse cx="50" cy="50" rx="30" ry="11" transform="rotate(-30 50 50)" fill="url(#${r})" ${ST}/><path d="M24 64 l-10 6 l4 -10 M27 70 l-6 10" ${ST} fill="none"/><path d="M56 30 q10 -4 18 2" stroke="${GOLD}" fill="none"/>${whip(66, 66, 1, 10)}`,
@@ -135,8 +138,8 @@ const MOTIFS: Record<string, Motif> = {
 };
 
 /** Motiv eines Symbols als SVG (quadratisch). */
-export function symbolSvg(art: string, c1: string, c2: string, lite = false) {
-  lite = lite || sfs().gfx === 'low';
+export function symbolSvg(art: string, c1: string, c2: string, lite = false, full = false) {
+  lite = !full && (lite || sfs().gfx === 'low');
   const g = gid('g'), r = gid('r'), en = gid('en'), fx = gid('fx');
   const m = MOTIFS[art] ?? MOTIFS.stern;
   const seed = [...art].reduce((a, ch) => a + ch.charCodeAt(0), 0);
@@ -148,13 +151,13 @@ export function symbolSvg(art: string, c1: string, c2: string, lite = false) {
 }
 
 // =========================================================================================== Gegner (Generator nach Archetyp)
-export function enemySvg(look: { kind: string; seed: number; hue: number; boss?: string }): string {
-  if (look.boss) return bossSvg(look.boss, look.hue, look.seed);
+export function enemySvg(look: { kind: string; seed: number; hue: number; boss?: string }, mode: 'live' | 'still' | 'lids' = 'live'): string {
+  if (look.boss) return mode === 'lids' ? '' : bossSvg(look.boss, look.hue, look.seed, mode === 'still');
   const R = rng(look.seed * 7919 + 13), h = look.hue;
   const a = hsl(h, 45, 28), b = hsl(h + 25, 60, 62), c = hsl(h - 30, 55, 45);
   const g = gid('eg'), r = gid('er');
   let body = `<defs>${lin(g, b, a)}${rad(r, a, b)}</defs>`;
-  const alive = sfs().gfx !== 'low', blink = f1(3.2 + R() * 3.5);
+  const alive = mode === 'live' && sfs().gfx !== 'low', blink = f1(3.2 + R() * 3.5);
   const eyes: [number, number, number][] = [];
   /** Animation nur, wenn erlaubt. */
   const an = (x: string) => (alive ? x : '');
@@ -266,11 +269,12 @@ export function enemySvg(look: { kind: string; seed: number; hue: number; boss?:
       break;
     }
   }
-  const fx = gid('efx'), grain = look.kind === 'kristall' ? 0 : look.kind === 'mech' ? 0.7 : 1.15, low = sfs().gfx === 'low';
+  const still = mode !== 'live', fx = gid('efx'), grain = look.kind === 'kristall' ? 0 : look.kind === 'mech' ? 0.7 : 1.15, low = !still && sfs().gfx === 'low';
   // Lider: schließen sich kurz im eigenen Takt des Gegners (alle Augen gemeinsam)
-  const lids = alive && look.kind !== 'mech' ? eyes.map(([x, y, k]) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(k * 1.08)}" ry="0" fill="${a}" stroke="${GOLD}" stroke-width=".5"><animate attributeName="ry" values="0;0;${f1(k * 0.78)};0" keyTimes="0;.9;.95;1" dur="${blink}s" repeatCount="indefinite"/></ellipse>`).join('') : '';
+  const lids = (alive || mode === 'lids') && look.kind !== 'mech' ? eyes.map(([x, y, k]) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(k * 1.08)}" ry="0" fill="${a}" stroke="${GOLD}" stroke-width=".5"><animate attributeName="ry" values="0;0;${f1(k * 0.78)};0" keyTimes="0;.9;.95;1" dur="${blink}s" repeatCount="indefinite"/></ellipse>`).join('') : '';
   const breathe = alive ? `<animateTransform attributeName="transform" type="matrix" values="1 0 0 1 0 0;1.012 0 0 1.025 -.6 -1.3;1 0 0 1 0 0" dur="${f1(2.6 + R())}s" repeatCount="indefinite"/>` : '';
-  return svg('0 0 100 100', `${low ? '' : `<defs>${reliefFilter(fx, sfs().gfx === 'high' ? grain : 0, look.seed)}</defs>`}${halo(50, 52, 44, c, 30)}${guilloche(50, 52, 40, b, 8)}<g>${breathe}${low ? body : `<g filter="url(#${fx})">${body}</g>`}${lids}</g>${low ? '' : motes(look.seed, hsl(h + 180, 70, 75))}${inkShade(50, 52, 46)}`, 'foe-art');
+  if (mode === 'lids') return lids ? svg('0 0 100 100', lids, 'foe-lids') : '';
+  return svg('0 0 100 100', `${low ? '' : `<defs>${reliefFilter(fx, still || sfs().gfx === 'high' ? grain : 0, look.seed)}</defs>`}${halo(50, 52, 44, c, 30)}${guilloche(50, 52, 40, b, 8)}<g>${breathe}${low ? body : `<g filter="url(#${fx})">${body}</g>`}${lids}</g>${low || still ? '' : motes(look.seed, hsl(h + 180, 70, 75))}${inkShade(50, 52, 46)}`, 'foe-art');
 }
 
 // =========================================================================================== Bosse (eigene Kompositionen)
@@ -283,7 +287,7 @@ function lady(h: number, crown: string, hair: string, extra = '') {
   s += crown + extra;
   return s;
 }
-export function bossSvg(kind: string, h: number, seed: number): string {
+export function bossSvg(kind: string, h: number, seed: number, still = false): string {
   const g = gid('bg'), r = gid('br');
   const a = hsl(h, 45, 25), b = hsl(h + 20, 60, 62);
   let s = `<defs>${lin(g, b, a)}${rad(r, a, b)}</defs>`;
@@ -302,10 +306,46 @@ export function bossSvg(kind: string, h: number, seed: number): string {
     case 'uhrmacher': s += halo(50, 48, 42, '#e0c080', 60) + `<circle cx="50" cy="48" r="28" fill="url(#${r})" stroke="${GOLD}" stroke-width="2"/>` + Array.from({ length: 12 }, (_, i) => `<line x1="${f1(50 + Math.cos(i * 0.5236) * 23)}" y1="${f1(48 + Math.sin(i * 0.5236) * 23)}" x2="${f1(50 + Math.cos(i * 0.5236) * 27)}" y2="${f1(48 + Math.sin(i * 0.5236) * 27)}" stroke="${IVORY}" stroke-width="1.5"/>`).join('') + `<path d="M50 48 L50 30 M50 48 L62 54" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>${eye(50, 48, 5)}` + [-1, 1].map(s2 => `<path d="M${50 + s2 * 28} 40 C${50 + s2 * 44} 30 ${50 + s2 * 46} 60 ${50 + s2 * 40} 74 M${50 + s2 * 28} 58 C${50 + s2 * 40} 66 ${50 + s2 * 36} 84 ${50 + s2 * 30} 92" stroke="${GOLD}" stroke-width="2.4" fill="none"/>`).join(''); break;
     case 'sagittarius': s += Array.from({ length: 5 }, (_, i) => `<path d="M50 50 C${50 + 30} ${50 - 10 - i * 4} ${50 + 10 + i * 6} ${50 - 40} 50 ${8 + i * 3}" stroke="${i % 2 ? GOLD : b}" stroke-width="1.6" fill="none" transform="rotate(${i * 72} 50 50)"/>`).join('') + halo(50, 50, 16, '#ffd0a0') + `<circle cx="50" cy="50" r="12" fill="url(#${r})" stroke="${GOLD}"/>${eye(50, 50, 6, '#ff4060')}`; break;
     case 'architekt': s += `<path d="M50 4 L92 50 L50 96 L8 50Z" fill="none" stroke="${GOLD}" stroke-width="1"/><path d="M50 14 L82 50 L50 86 L18 50Z" fill="none" stroke="${b}" stroke-width=".6"/>` + `<path d="M30 96 L36 46 C36 24 64 24 64 46 L70 96Z" fill="#14101e" stroke="${GOLD}" stroke-width="1.3"/><path d="M38 30 C40 16 60 16 62 30 L62 50 C58 60 42 60 38 50Z" fill="${IVORY}" stroke="${GOLD}" stroke-width="1.2"/><path d="M42 38 L47 38 M53 38 L58 38" stroke="${INK}" stroke-width="2.5"/><path d="M50 42 L50 54" stroke="${GOLD}"/>` + Array.from({ length: 9 }, (_, i) => star4(14 + i * 9, 92 - Math.abs(4 - i) * 8, 2, '#8a80b0')).join(''); break;
+    case 'werftmutter': s += halo(50, 38, 40, hsl(h, 50, 55))
+      + [-1, 1].map(sx => [0, 1, 2].map(i => `<path d="M${50 + sx * 10} 54 L${50 + sx * (24 + i * 8)} ${44 + i * 9} L${50 + sx * (30 + i * 9)} 94" stroke="${GOLD}" stroke-width="${2.4 - i * 0.4}" fill="none" stroke-linejoin="round"/>`).join('')).join('')
+      + `<path d="M50 34 L50 8 L88 4 L88 10 L54 16" stroke="${GOLD}" stroke-width="2" fill="none"/>` + [0, 1, 2, 3, 4].map(i => `<path d="M${56 + i * 6} ${14 - i * 0.6} L${59 + i * 6} ${6 - i * 0.3}" stroke="${IVORY}" stroke-width=".6"/>`).join('')
+      + `<path d="M84 9 L84 38" stroke="${IVORY}" stroke-width=".8"/><path d="M84 38 q-6 7 0 11 q5 -2 3 -6" stroke="${GOLD}" stroke-width="1.6" fill="none"/>`
+      + `<path d="M32 46 L41 32 L59 32 L68 46 L59 64 L41 64Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.4"/><path d="M41 32 L50 46 L59 32 M32 46 L68 46 M41 64 L50 46 L59 64" stroke="${IVORY}" stroke-width=".5" opacity=".6"/>`
+      + eye(43, 44, 3.6) + eye(57, 44, 3.6) + eye(50, 55, 2.6, '#ffb04a'); break;
+    case 'flaggschiff': s += halo(50, 44, 42, '#a8e0e0', 30)
+      + [30, 50, 70].map((x, i) => `<path d="M${x} 66 L${x} ${14 + i % 2 * 6}" stroke="${GOLD}" stroke-width="1.6"/><path d="M${x - 13} ${22 + i % 2 * 6} C${x - 6} ${28 + i % 2 * 6} ${x + 6} ${18 + i % 2 * 6} ${x + 13} ${24 + i % 2 * 6} L${x + 11} ${46} C${x + 4} ${42} ${x - 4} ${52} ${x - 12} ${46}Z" fill="${IVORY}" opacity=".5" stroke="${hsl(h, 50, 70)}" stroke-width=".7"/><path d="M${x - 4} 34 l3 5 l3 -6" stroke="${INK}" stroke-width=".8" fill="none"/>`).join('')
+      + `<path d="M8 64 L92 64 L82 82 L20 82Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.4"/><path d="M92 64 L99 56" stroke="${GOLD}" stroke-width="1.4"/>` + [0, 1, 2, 3, 4, 5].map(i => `<circle cx="${24 + i * 10}" cy="72" r="2.2" fill="#9ff0e8" stroke="${GOLD}" stroke-width=".5"/>`).join('')
+      + `<path d="M8 64 C4 58 6 52 12 52" stroke="${GOLD}" stroke-width="1.2" fill="none"/>${eye(14, 58, 3, '#7ff0e0')}<path d="M20 84 C30 92 70 92 80 84" stroke="#9ff0e8" stroke-width="1" fill="none" opacity=".6" stroke-dasharray="2 3"/>`; break;
+    case 'riffmutter': s += lady(h, Array.from({ length: 5 }, (_, i) => { const x = 34 + i * 8, t = 26 - Math.abs(2 - i) * 4; return `<path d="M${x} 30 L${x} ${t - 6} M${x} ${t} l-4 -5 M${x} ${t + 2} l4 -6" stroke="${hsl(h + 170, 60, 62)}" stroke-width="2" stroke-linecap="round"/><circle cx="${x}" cy="${t - 7}" r="1.8" fill="#fff6d8"/>`; }).join(''), hsl(h, 50, 45),
+      Array.from({ length: 7 }, (_, i) => `<path d="M${14 + i * 12} 98 C${12 + i * 12} 84 ${20 + i * 12} 78 ${16 + i * 12} 70 M${16 + i * 12} 84 l${i % 2 ? 6 : -6} -5" stroke="${hsl(h + (i % 2 ? 170 : 0), 55, 58)}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`).join('') + Array.from({ length: 6 }, (_, i) => `<circle cx="${18 + i * 13}" cy="${70 + (i % 2) * 6}" r="1.6" fill="#c8fff0"/>`).join('')); break;
+    case 'schlund': s += halo(50, 50, 46, hsl(h, 60, 50), 40)
+      + [40, 32, 24].map((rr, k) => `<circle cx="50" cy="50" r="${rr}" fill="${k === 0 ? `url(#${r})` : k === 1 ? hsl(h, 50, 22) : '#0a0410'}" stroke="${GOLD}" stroke-width="${1.4 - k * 0.3}"/>` + Array.from({ length: 14 + k * 2 }, (_, i) => { const a = i / (14 + k * 2) * 6.283 + k * 0.2, x1 = 50 + Math.cos(a) * rr, y1 = 50 + Math.sin(a) * rr, x2 = 50 + Math.cos(a + 0.12) * (rr - 6), y2 = 50 + Math.sin(a + 0.12) * (rr - 6), x3 = 50 + Math.cos(a + 0.24) * rr, y3 = 50 + Math.sin(a + 0.24) * rr; return `<path d="M${f1(x1)} ${f1(y1)} L${f1(x2)} ${f1(y2)} L${f1(x3)} ${f1(y3)}Z" fill="${IVORY}" opacity="${0.9 - k * 0.2}"/>`; }).join('')).join('')
+      + Array.from({ length: 6 }, (_, i) => { const a = -2.6 + i * 0.42; return eye(f1(50 + Math.cos(a) * 45) as any, f1(50 + Math.sin(a) * 45) as any, 3, '#ff6a8a'); }).join('') + `<circle cx="50" cy="50" r="5" fill="#ff8ab0" opacity=".5"/>`; break;
+    case 'leviathan': s += halo(50, 40, 40, '#7fe0f0', 34)
+      + [0, 1, 2, 3].map(i => `<ellipse cx="50" cy="${64 + i * 8}" rx="${17 - i * 3}" ry="5" fill="url(#${g})" stroke="${GOLD}" stroke-width=".9"/>`).join('')
+      + [-1, 1].map(sx => `<path d="M${50 + sx * 20} 50 C${50 + sx * 38} 48 ${50 + sx * 44} 30 ${50 + sx * 38} 20 C${50 + sx * 34} 28 ${50 + sx * 28} 30 ${50 + sx * 26} 27 C${50 + sx * 30} 22 ${50 + sx * 30} 14 ${50 + sx * 25} 10 C${50 + sx * 18} 18 ${50 + sx * 18} 34 ${50 + sx * 16} 44Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.2"/><path d="M${50 + sx * 16} 58 L${50 + sx * 34} 70 M${50 + sx * 15} 62 L${50 + sx * 30} 80" stroke="${GOLD}" stroke-width="1.3"/>`).join('')
+      + `<path d="M30 46 C30 24 70 24 70 46 L62 60 L38 60Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.5"/><path d="M36 34 Q50 26 64 34 M38 40 Q50 34 62 40" stroke="${IVORY}" stroke-width=".6" fill="none" opacity=".7"/>`
+      + [40, 50, 60].map((x, i) => `<circle cx="${x}" cy="${46 + (i === 1 ? -2 : 0)}" r="${i === 1 ? 5 : 3.6}" fill="#bff8ff" stroke="${GOLD}"/><circle cx="${x}" cy="${46 + (i === 1 ? -2 : 0)}" r="${i === 1 ? 2.2 : 1.5}" fill="#1fb8d0"/>`).join('')
+      + glyphRing(50, 40, 33, seed, 20, '#9ff0ff', 0.5); break;
+    case 'herzstein': s += halo(50, 50, 42, '#a0f0ff', 44)
+      + [34, 42].map((rr, k) => `<ellipse cx="50" cy="50" rx="${rr}" ry="${rr * 0.32}" fill="none" stroke="${k ? GOLD : '#9ff0ff'}" stroke-width=".9" transform="rotate(${k ? 24 : -18} 50 50)"/>`).join('')
+      + `<path d="M50 84 L24 46 C18 34 26 20 38 20 C44 20 48 24 50 28 C52 24 56 20 62 20 C74 20 82 34 76 46Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.6"/>`
+      + `<path d="M50 84 L38 44 L50 28 L62 44Z M24 46 L38 44 M76 46 L62 44 M38 20 L38 44 M62 20 L62 44" stroke="${IVORY}" stroke-width=".7" fill="none" opacity=".75"/>`
+      + star4(50, 46, 12, '#f0ffff') + Array.from({ length: 5 }, (_, i) => { const a = i * 1.257 + 0.4; return `<path d="M${f1(50 + Math.cos(a) * 40)} ${f1(50 + Math.sin(a) * 40)} l3 -6 l3 6 l-3 4Z" fill="#c8fbff" stroke="${GOLD}" stroke-width=".5"/>`; }).join(''); break;
+    case 'sturmkoenig': s += halo(50, 42, 42, hsl(h, 60, 62), 36)
+      + Array.from({ length: 9 }, (_, i) => `<circle cx="${20 + i * 7.5}" cy="${30 + Math.abs(4 - i) * 3 - (i % 2) * 4}" r="${9 - Math.abs(4 - i) * 0.8}" fill="${hsl(h, 30, 30 + (i % 3) * 6)}" stroke="${hsl(h, 40, 60)}" stroke-width=".7"/>`).join('')
+      + `<path d="M36 44 C36 30 64 30 64 44 C64 60 58 66 50 66 C42 66 36 60 36 44Z" fill="${hsl(h, 25, 70)}" stroke="${GOLD}" stroke-width="1.2"/>`
+      + `<path d="M40 44 L46 46 M54 46 L60 44" stroke="${INK}" stroke-width="2"/><circle cx="43" cy="46.5" r="1.6" fill="#e8f0ff"/><circle cx="57" cy="46.5" r="1.6" fill="#e8f0ff"/><path d="M45 57 Q50 54 55 57" stroke="${INK}" stroke-width="1.2" fill="none"/>`
+      + [-14, -6, 4, 12].map((dx, i) => `<path d="M${50 + dx} 64 L${46 + dx} ${76 + i % 2 * 4} L${52 + dx} ${76 + i % 2 * 4} L${47 + dx} ${92 + i % 2 * 4}" stroke="#fff4b0" stroke-width="1.6" fill="none" stroke-linejoin="round"/>`).join('')
+      + [0, 1, 2, 3, 4].map(i => `<path d="M${36 + i * 7} 30 L${34 + i * 7} ${18 - (i % 2) * 6} L${38 + i * 7} ${22 - (i % 2) * 6} L${37 + i * 7} ${10 - (i % 2) * 6}" stroke="${GOLD}" stroke-width="1.8" fill="none" stroke-linejoin="round"/>`).join(''); break;
+    case 'hydra': s += halo(50, 46, 44, hsl(h, 60, 60), 30)
+      + `<path d="M24 96 C24 70 38 64 50 64 C62 64 76 70 76 96Z" fill="url(#${r})" stroke="${GOLD}" stroke-width="1.3"/>`
+      + [[-1, 22], [0, 10], [1, 22]].map(([sx, top]) => { const hx = 50 + sx * 26, hy = top; return `<path d="M${50 + sx * 8} 68 C${50 + sx * 10} 50 ${hx - sx * 6} ${hy + 30} ${hx} ${hy + 12}" stroke="url(#${g})" stroke-width="9" fill="none" stroke-linecap="round"/><path d="M${50 + sx * 8} 68 C${50 + sx * 10} 50 ${hx - sx * 6} ${hy + 30} ${hx} ${hy + 12}" stroke="${IVORY}" stroke-width=".6" fill="none" stroke-dasharray="2 3"/><path d="M${hx - 9} ${hy + 10} C${hx - 9} ${hy} ${hx + 9} ${hy} ${hx + 9} ${hy + 10} L${hx + 3} ${hy + 18} L${hx - 3} ${hy + 18}Z" fill="url(#${r})" stroke="${GOLD}"/>${eye(hx - 4, hy + 8, 2.2, '#fff27a')}${eye(hx + 4, hy + 8, 2.2, '#fff27a')}<path d="M${hx - 6} ${hy + 1} L${hx - 9} ${hy - 6} M${hx + 6} ${hy + 1} L${hx + 9} ${hy - 6}" stroke="${GOLD}" stroke-width="1.2"/>`; }).join('')
+      + `<path d="M30 30 L38 26 L34 36 L44 30" stroke="#fff4b0" stroke-width="1.2" fill="none"/><path d="M70 30 L62 26 L66 36 L56 30" stroke="#fff4b0" stroke-width="1.2" fill="none"/>`; break;
     default: return enemySvg({ kind: 'auge', seed, hue: h });
   }
-  const fx = gid('bfx'), low = sfs().gfx === 'low';
-  return svg('0 0 100 100', `${low ? '' : `<defs>${reliefFilter(fx, sfs().gfx === 'high' ? 0.7 : 0, seed)}</defs>`}${glyphRing(50, 50, 47, seed, 30, CRYSTAL, 0.6)}${low ? s : `<g filter="url(#${fx})">${s}</g>${motes(seed, '#f0d08a', 8)}`}${inkShade(50, 50, 48)}`, 'foe-art boss-art');
+  const fx = gid('bfx'), low = !still && sfs().gfx === 'low';
+  return svg('0 0 100 100', `${low ? '' : `<defs>${reliefFilter(fx, still || sfs().gfx === 'high' ? 0.7 : 0, seed)}</defs>`}${glyphRing(50, 50, 47, seed, 30, CRYSTAL, 0.6)}${low ? s : `<g filter="url(#${fx})">${s}</g>${still ? '' : motes(seed, '#f0d08a', 8)}`}${inkShade(50, 50, 48)}`, 'foe-art boss-art');
 }
 
 // =========================================================================================== Porträts (Figuren der Geschichte)
@@ -328,10 +368,10 @@ export function portraitSvg(id: string) {
 }
 
 // =========================================================================================== Schiffe
-export function shipSvg(hull: string, hue: number) {
+export function shipSvg(hull: string, hue: number, still = false) {
   const g = gid('sg'), r = gid('sr'), fl = gid('sfl'), fx = gid('sfx'), gl = gid('sgl');
   const a = hsl(hue, 45, 26), b = hsl(hue + 20, 55, 62), dk = hsl(hue, 40, 14);
-  const low = sfs().gfx === 'low';
+  const low = !still && sfs().gfx === 'low';
   const defs = `<defs>${lin(g, b, a, 1, 0)}${rad(r, a, b)}
     <radialGradient id="${fl}" cx="1" cy=".5" r="1"><stop offset="0" stop-color="#fff8e0"/><stop offset=".35" stop-color="#ffd27a"/><stop offset=".7" stop-color="#ff8a3a" stop-opacity=".6"/><stop offset="1" stop-color="#ff5a2a" stop-opacity="0"/></radialGradient>
     <radialGradient id="${gl}" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#e8fffe"/><stop offset=".5" stop-color="${CRYSTAL}"/><stop offset="1" stop-color="#14444a"/></radialGradient>
@@ -476,4 +516,33 @@ export function frameImg(style: 'gold' | 'ink' = 'gold', variant: 'a' | 'b' = 'a
   let body = plan.map((c, i) => `<g transform="${T[i]}">${c}</g>`).join('');
   body += `<path d="M30 ${E} H50 M30 ${80 - E} H50 M${E} 30 V50 M${80 - E} 30 V50" stroke="${c1}" stroke-width="1.5"/><path d="M30 ${E + 3} H50 M30 ${77 - E} H50 M${E + 3} 30 V50 M${77 - E} 30 V50" stroke="${c2}" stroke-width=".7"/>`;
   return `url("data:image/svg+xml,${encodeURIComponent(svg('0 0 80 80', body))}")`;
+}
+
+// =========================================================================================== Bild-Cache (Leistung)
+// Inline-SVG mit Relief-Filtern wird bei jeder Bewegung neu berechnet (auf dem iPhone per CPU). Als <img> rastert
+// WebKit das Motiv einmal und verschiebt danach nur noch fertige Pixel. „Hoch“ behält die lebenden Inline-Gegner.
+const urlCache = new Map<string, string>();
+const stripAnim = (s: string) => s.replace(/<animate(Transform)?\b[^>]*\/>/g, '').replace(/<animate(Transform)?\b[^>]*>[\s\S]*?<\/animate(Transform)?>/g, '');
+function cachedUrl(key: string, make: () => string) {
+  let u = urlCache.get(key);
+  if (!u) { u = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(stripAnim(make())); urlCache.set(key, u); }
+  return u;
+}
+const img = (src: string, cls: string) => `<img class="${cls}" src="${src}" alt="" draggable="false" decoding="async">`;
+/** Symbolmotiv als zwischengespeichertes Bild (Walzen, Karten, Vorschau). */
+export function symbolHtml(art: string, c1: string, c2: string) {
+  if (sfs().gfx === 'low') return symbolSvg(art, c1, c2, true);
+  return img(cachedUrl(`s|${art}|${c1}|${c2}`, () => symbolSvg(art, c1, c2, false, true)), 'sym-img');
+}
+/** Gegner: „hoch“ = lebendes SVG; sonst gerastertes Bild + animierte Lider + CSS-Atmen/Wiegen je Archetyp. */
+export function enemyHtml(look: { kind: string; seed: number; hue: number; boss?: string }) {
+  if (sfs().gfx === 'high') return `<div class="foe-live">${enemySvg(look)}</div>`;
+  const k = look.boss ? 'boss' : look.kind;
+  const src = cachedUrl(`e|${look.kind}|${look.seed}|${look.hue}|${look.boss ?? ''}`, () => enemySvg(look, 'still'));
+  return `<div class="foe-still k-${k}" style="--bd:${(2.6 + (look.seed % 7) * 0.23).toFixed(2)}s">${img(src, 'foe-img')}${sfs().gfx === 'mid' ? enemySvg(look, 'lids') : ''}</div>`;
+}
+/** Schiff: „hoch“ = lebendes SVG (flackernde Flamme), sonst gerastert mit CSS-Flackern. */
+export function shipHtml(hull: string, hue: number) {
+  if (sfs().gfx === 'high') return shipSvg(hull, hue);
+  return `<div class="ship-still">${img(cachedUrl(`h|${hull}|${hue}`, () => shipSvg(hull, hue, true)), 'ship-img')}</div>`;
 }

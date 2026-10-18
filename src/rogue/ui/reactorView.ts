@@ -7,7 +7,8 @@ import { ENEMY } from '../data/enemies';
 import { SHIP } from '../data/ships';
 import { BAL, LINES, Reactor, ReactorEvent } from '../reactor';
 import { Particles, bgmIntensity, flash, floatText, haptic, shake, slowmo, snd } from '../juice';
-import { enemySvg, shipSvg, symbolSvg } from '../art';
+import { enemyHtml, shipHtml, symbolHtml } from '../art';
+import { skyHold } from '../sky';
 import { discover, meta, saveMeta, track, unlock } from '../meta';
 import { Foe, Intent, Run } from '../types';
 import { moduleEl, roman, showConsts, showReels, tx } from './parts';
@@ -146,12 +147,18 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
     function renderTop() {
       const sh = SHIP[run.ship];
       topEl.innerHTML = '';
-      topEl.append(h('div', { class: 'sf-ship', html: shipSvg(sh.hull, sh.hue) }),
+      topEl.append(h('div', { class: 'sf-ship', html: shipHtml(sh.hull, sh.hue) }),
         h('div', { class: 'sf-stat hp' }, h('i', { style: { width: `${Math.max(0, run.hp / run.maxHp) * 100}%` } }), h('span', null, `${Math.max(0, run.hp)}/${run.maxHp}`)),
         h('div', { class: 'sf-stat gold' }, h('i', { class: 'sfc' }), ` ${run.gold}`),
         h('button', { class: 'sf-ib', onclick: () => showReels(run) }, '⚙'),
         h('button', { class: 'sf-ib', onclick: menu }, '☰'),
         h('div', { class: 'sf-mods' }, run.modules.map(id => moduleEl(id))));
+    }
+    const artOf = new Map<number, HTMLElement>();
+    function foeArt(uid: number, look: typeof ENEMY[string]['look']) {
+      let a = artOf.get(uid);
+      if (!a) { a = h('div', { class: 'sf-foeart', html: enemyHtml(look) }); artOf.set(uid, a); }
+      return a;
     }
     function renderFoes() {
       const now = performance.now();
@@ -164,14 +171,14 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         const fresh = !seen.has(f.uid); seen.add(f.uid);
         const el = h('div', { class: `sf-foe ${d.tier}${f.dead ? ' dead' : ''}${c.target === f ? ' tgt' : ''}${fresh ? ' warpin' : ''}` },
           f.dead ? '' : h('div', { class: 'sf-intent ' + cls }, h('b', null, ic), num),
-          h('div', { class: 'sf-foeart', html: enemySvg(d.look) }),
+          foeArt(f.uid, d.look),
           h('div', { class: 'sf-fname' }, tx(d.name)),
           traitsOf(f.id).length ? h('div', { class: 'sf-traits' }, traitsOf(f.id).map(t => h('span', { class: TRAIT[t].good ? 'good' : 'bad', title: tx(TRAIT[t].name) }, TRAIT[t].icon))) : '',
           h('div', { class: 'sf-hpbar' }, h('i', { style: { width: `${Math.max(0, f.hp / f.max) * 100}%` } }), h('span', null, `${Math.max(0, f.hp)}/${f.max}`)),
           chips(f));
         el.addEventListener('click', () => { if (!f.dead) { c.target = f; snd.card(); renderFoes(); } });
         let lp = 0;
-        el.addEventListener('pointerdown', () => { lp = window.setTimeout(() => sheet(tx(d.name), h('div', { class: 'sf-foebig', html: enemySvg(d.look) }), h('p', { class: 'small' }, d.passive ? tx(d.passive) : L('Keine Sonderregel.', 'No special rule.')), traitList(f.id)), 450); });
+        el.addEventListener('pointerdown', () => { lp = window.setTimeout(() => sheet(tx(d.name), h('div', { class: 'sf-foebig', html: enemyHtml(d.look) }), h('p', { class: 'small' }, d.passive ? tx(d.passive) : L('Keine Sonderregel.', 'No special rule.')), traitList(f.id)), 450); });
         el.addEventListener('pointerup', () => clearTimeout(lp)); el.addEventListener('pointerleave', () => clearTimeout(lp));
         foeNode.set(f.uid, el);
         foesEl.append(el);
@@ -189,7 +196,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       machine.classList.toggle('hot', c.heat >= max - 1);
     }
     // Musik eskaliert mit der Lage: Grundbedrohung des Kampfs, kritische Hülle, Boss unter halber Hülle
-    const baseThreat = kind === 'boss' ? 1 : kind === 'elite' ? 0.9 : Math.min(0.75, 0.35 + 0.1 * (ids.length - 1) + 0.12 * (Math.min(4, Math.max(1, (run.act ?? 1))) - 1));
+    const baseThreat = kind === 'boss' ? 1 : kind === 'elite' ? 0.9 : Math.min(0.75, 0.35 + 0.1 * (ids.length - 1) + 0.07 * (Math.min(6, Math.max(1, (run.act ?? 1))) - 1));
     function musicThreat() {
       const hpLow = run.hp / run.maxHp < 0.35;
       const bossLow = c.alive().some(f => (ENEMY[f.id].tier === 'boss' || ENEMY[f.id].tier === 'final') && f.hp < f.max * 0.5);
@@ -217,14 +224,14 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         const mode = c.held[r] ? 'on' : c.nudge[r] ? 'nudge' : '';
         const b = h('button', { class: 'sf-hold ' + mode, disabled: busy || c.spin === 0 || !c.canSpin() },
           h('span', null, c.held[r] ? L('🔒 Halten', '🔒 Hold') : c.nudge[r] ? L('▲ Schubsen', '▲ Nudge') : L('Frei', 'Free')),
-          c.spin > 0 ? h('i', { class: 'sf-peek', title: tx(pd.name), html: symbolSvg(pd.art, pd.c1, pd.c2) }) : '');
+          c.spin > 0 ? h('i', { class: 'sf-peek', title: tx(pd.name), html: symbolHtml(pd.art, pd.c1, pd.c2) }) : '');
         b.addEventListener('click', () => { if (c.toggleHold(r)) { snd.hold(); renderReelsStatic(); renderStatus(); } });
         holdRow.append(b);
       });
     }
     function cell(s: { id: string; lv: number }, lite = false) {
       const d = SYM[s.id];
-      return h('div', { class: `sf-cell t-${d.tag}${d.wild ? ' wild' : ''}` }, h('div', { class: 'sf-cellart', html: symbolSvg(d.art, d.c1, d.c2, lite) }), s.lv > 1 ? h('i', null, ['', '', 'II', 'III'][s.lv]) : '');
+      return h('div', { class: `sf-cell t-${d.tag}${d.wild ? ' wild' : ''}` }, h('div', { class: 'sf-cellart', html: symbolHtml(d.art, d.c1, d.c2) }), s.lv > 1 ? h('i', null, ['', '', 'II', 'III'][s.lv]) : '');
     }
     function renderReelsStatic() {
       reelsEl.innerHTML = '';
@@ -250,7 +257,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         const nudged = nudgeBefore[r] && oldGrid[r];
         const extra = heldBefore[r] ? 0 : nudged ? 1 : 16 + r * 7;
         const seq = nudged ? [oldGrid[r][0], ...c.grid[r]] : [...Array.from({ length: extra }, () => reel[Math.floor(Math.random() * reel.length)]), ...c.grid[r]];
-        seq.forEach((s, i) => strip.append(cell(s, i < seq.length - 3 || sfs().gfx !== 'high')));   // Füller ohne Filter (flüssiges Drehen)
+        seq.forEach(s => strip.append(cell(s)));
         cellEl[r] = [...strip.children].slice(-3) as HTMLElement[];
         col.append(strip);
         reelsEl.append(col);
@@ -258,21 +265,23 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         const dur = (nudged ? 420 : 900 + r * 420 + (r === 2 && near ? 800 : 0)) * pace();
         // Web Animations statt CSS-Transition: läuft sicher an, auch wenn der Streifen erst in diesem Bild eingefügt wurde.
         const end = `translateY(${-extra * cellH}px)`;
+        strip.style.willChange = 'transform';
         const anim = strip.animate([
-          { transform: 'translateY(0)', filter: 'blur(0)' },
-          { transform: `translateY(${-extra * cellH * 0.25}px)`, filter: 'blur(2.5px)', offset: 0.18 },
-          { transform: `translateY(${-extra * cellH * 0.85}px)`, filter: 'blur(1.5px)', offset: 0.7 },
-          { transform: end, filter: 'blur(0)' },
+          { transform: 'translate3d(0,0,0)' },
+          { transform: `translate3d(0,${-extra * cellH * 0.25}px,0)`, offset: 0.18 },
+          { transform: `translate3d(0,${-extra * cellH * 0.85}px,0)`, offset: 0.7 },
+          { transform: end },
         ], { duration: dur, easing: 'cubic-bezier(.3,.1,.25,1.04)', fill: 'forwards' });
         strip.style.transform = end;
         tasks.push(new Promise(res => {
           let done = false;
-          const fin = () => { if (done) return; done = true; snd.reel(); col.classList.add('stop'); res(); };
+          const fin = () => { if (done) return; done = true; strip.style.willChange = ''; snd.reel(); col.classList.add('stop'); res(); };
           anim.finished.then(fin, fin);
           setTimeout(fin, dur + 400); // Sicherheitsnetz, falls Animationen gedrosselt werden
         }));
       }
       const tick = setInterval(() => snd.reel(), 85);
+      if (sfs().gfx !== 'high') skyHold((1700 + (near ? 800 : 0)) * pace());
       return Promise.all(tasks).then(() => { clearInterval(tick); });
     }
 
@@ -356,7 +365,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       busy = true; renderStatus();
       const card = h('div', { class: 'sf-bossintro' },
         h('small', null, bd.tier === 'final' ? L('Das Ende aller Sterne', 'The end of all stars') : L('Wächter des Sektors', 'Guardian of the sector')),
-        h('div', { class: 'art', html: enemySvg(bd.look) }),
+        h('div', { class: 'art', html: enemyHtml(bd.look) }),
         h('b', null, tx(bd.name)), h('div', { html: ornament(220) }),
         bd.passive ? h('p', null, tx(bd.passive)) : '',
         h('div', { class: 'sf-traits big' }, traitsOf(bd.id).map(t => h('span', { class: TRAIT[t].good ? 'good' : 'bad' }, `${TRAIT[t].icon} ${tx(TRAIT[t].name)}`))));

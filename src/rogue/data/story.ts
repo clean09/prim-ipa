@@ -23,7 +23,7 @@ export const CHAPTERS: Chapter[] = [
   { id: 'prolog', title: T('Prolog · Die Verlöschung', 'Prologue · The Dimming'), unlock: 'start', lines: [
     { who: 'ilya', text: T('Vor drei Zyklen gingen die ersten Sterne aus. Nicht wie Sterne sterben – sie wurden einfach still, wie Kerzen, die jemand zwischen zwei Fingern erstickt.', 'Three cycles ago the first stars went out. Not the way stars die – they simply fell silent, like candles snuffed between two fingers.') },
     { who: 'herz', text: T('… Kurierin. Ich höre die anderen. Sie rufen aus dem Kern. Bring mich zu ihnen, bevor auch mein Licht vergeht.', '… Courier. I hear the others. They call from the Core. Take me to them before my light fades too.') },
-    { who: 'ilya', text: T('Mein Reaktor spricht. Er ist ein gefangener Stern, und er stirbt. Also fliege ich – durch Gürtel, Nebel und Horizonte, bis zum Kern der Galaxis. Jeder Dreh am Reaktor kostet ihn Kraft. Jeder Sieg gibt ihm welche zurück.', 'My reactor speaks. It is a captured star, and it is dying. So I fly – through belts, nebulae and horizons, to the galactic Core. Every spin of the reactor costs it strength. Every victory gives some back.') },
+    { who: 'ilya', text: T('Mein Reaktor spricht. Er ist ein gefangener Stern, und er stirbt. Also fliege ich – durch Gürtel, Wracks, Nebel, versunkene Städte und Horizonte, bis an den Rand der Galaxis. Jeder Dreh am Reaktor kostet ihn Kraft. Jeder Sieg gibt ihm welche zurück.', 'My reactor speaks. It is a captured star, and it is dying. So I fly – through belts, wrecks, nebulae, sunken cities and horizons, to the edge of the galaxy. Every spin of the reactor costs it strength. Every victory gives some back.') },
   ] },
   { id: 'k1', title: T('Kapitel I · Steine, die singen', 'Chapter I · Stones that Sing'), unlock: 'visit:guertel', lines: [
     { who: 'ozzo', text: T('Hrrm. Eine Kurierin mit einem lebenden Stern im Bauch. Weißt du, was so etwas wert ist? Mehr als dieser ganze Gürtel. Kauf bei Ozzo, solange du noch kannst.', 'Hrrm. A courier with a living star in her belly. Do you know what that is worth? More than this whole belt. Buy from Ozzo while you still can.') },
@@ -36,6 +36,40 @@ export const CHAPTERS: Chapter[] = [
   { id: 'k2', title: T('Kapitel II · Der Frostring', 'Chapter II · The Frost Ring'), unlock: 'visit:frost', lines: [
     { who: 'kassik', text: T('Klick. Klick. Auf deinen Stern ist ein Preis ausgesetzt, Kurierin. Ein hoher. Aber ich jage nicht für Leute, die Sterne auslöschen. Noch nicht.', 'Click. Click. There is a price on your star, courier. A high one. But I do not hunt for people who put out stars. Not yet.') },
     { who: 'ilya', text: T('Kassik-Tor folgt mir seitdem. Immer drei Sprünge hinter mir. Ich weiß nicht, ob sie mich beschützt oder auf den richtigen Moment wartet.', 'Kassik-Tor has followed me since. Always three jumps behind. I do not know whether she protects me or waits for the right moment.') },
+  ] },
+  { id: 'w1', title: T('Zwischen den Welten · Das Schiffsgrab', 'Between Worlds · The Ship Graveyard'), unlock: 'visit:werft', lines: [
+    { who: 'kassik', text: T('Klick. Jedes dieser Wracks hatte einen Stern im Bauch, wie du. Der Architekt hat sie ausgetrunken und die Hüllen hier liegen lassen. Ein Friedhof für Kuriere.', 'Click. Every one of these wrecks had a star in its belly, like you. The Architect drank them dry and left the hulls here. A graveyard for couriers.') },
+    { who: 'herz', text: T('Ich höre sie noch, Ilya. Ganz leise. Wie Glut unter Asche.', 'I can still hear them, Ilya. Very faintly. Like embers under ash.') },
+  ] },
+  { id: 'w2', title: T('Zwischen den Welten · Die Werftmutter', 'Between Worlds · The Shipyard Mother'), unlock: 'boss:werft', lines: [
+    { who: 'ilya', text: T('Als der letzte Wächter des Schiffsgrabs fiel, öffneten sich die Frachträume ringsum. Kleine Lichter stiegen auf – die Reste der Kuriersterne. Lumen sang ihnen nach.', 'When the last warden of the graveyard fell, the holds all around opened. Little lights rose – the remains of the courier stars. Lumen sang after them.') },
+  ] },
+  { id: 'r1', title: T('Zwischen den Welten · Das Lebende Riff', 'Between Worlds · The Living Reef'), unlock: 'visit:riff', lines: [
+    { who: 'vael', text: T('Das Riff wächst aus Sternenstaub. Jeder erloschene Stern lässt es hungern. Seine Wächter wissen nicht, dass du helfen willst – sie sehen nur deinen gefangenen Stern.', 'The reef grows from stardust. Every dead star starves it. Its wardens do not know you want to help – they only see your captive star.') },
+  ] },
+  { id: 'r2', title: T('Zwischen den Welten · Das Lied des Riffs', 'Between Worlds · The Song of the Reef'), unlock: 'boss:riff', lines: [
+    { who: 'herz', text: T('Das Riff hat mir etwas gegeben, Ilya. Eine Erinnerung: Es gab eine Stadt, die Sterne nicht einfing, sondern beherbergte. Thal’Ora.', 'The reef gave me something, Ilya. A memory: there was a city that did not capture stars but sheltered them. Thal’Ora.') },
+  ] },
+  { id: 'p1', title: T('Hafen · Freihafen Mirr-Anvaal', 'Port · Free Port Mirr-Anvaal'), unlock: 'port:1', lines: [
+    { who: 'ozzo', text: T('Hrrm! Die Kurierin lebt noch. Willkommen in Mirr – hier gibt es alles, was du brauchst, und vieles, was du nicht brauchst. Beides zu fairen Preisen. Fast.', 'Hrrm! The courier still lives. Welcome to Mirr – everything you need is here, and much you don’t. Both at fair prices. Almost.') },
+    { who: 'brakk', text: T('Der Korridor zum nächsten Sektor öffnet sich bald. Für mehr als drei Sachen reicht die Zeit nicht. Wähl klug.', 'The corridor to the next sector opens soon. There is no time for more than three things. Choose wisely.') },
+  ] },
+  { id: 't1', title: T('Zwischen den Welten · Thal’Ora', 'Between Worlds · Thal’Ora'), unlock: 'visit:tiefsee', lines: [
+    { who: 'vael', text: T('Die Versunkene Stadt. Hier lebten die ersten Lichtsammler, bevor es Motten gab. Sie bauten keinen Käfig für ihr Licht – sie bauten ein Herz, in dem es wohnen konnte.', 'The Sunken City. The first light-gatherers lived here, before there were moths. They built no cage for their light – they built a heart for it to live in.') },
+    { who: 'ilya', text: T('Unter uns glomm die Stadt in einem Meer aus flüssigem Sternenlicht. Und etwas Riesiges bewegte sich zwischen den Türmen.', 'Below us the city glowed in a sea of liquid starlight. And something enormous moved between the towers.') },
+  ] },
+  { id: 't2', title: T('Zwischen den Welten · Das Herz der Stadt', 'Between Worlds · The Heart of the City'), unlock: 'boss:tiefsee', lines: [
+    { who: 'herz', text: T('Die Stadt hat mich erkannt. Sie sagt: Der Architekt war hier. Er nahm ihr Wissen – und vergaß, wofür es gedacht war.', 'The city recognised me. It says: the Architect was here. He took its knowledge – and forgot what it was meant for.') },
+  ] },
+  { id: 's1', title: T('Zwischen den Welten · Der Ewige Sturm', 'Between Worlds · The Eternal Storm'), unlock: 'visit:sturm', lines: [
+    { who: 'sola', text: T('Ein Sturm, der seit einer Milliarde Jahren tobt, Schätzchen. Die Wetten stehen schlecht. Genau deshalb setze ich auf dich.', 'A storm raging for a billion years, darling. The odds are bad. That is exactly why I am betting on you.') },
+  ] },
+  { id: 's2', title: T('Zwischen den Welten · Stille', 'Between Worlds · Stillness'), unlock: 'boss:sturm', lines: [
+    { who: 'ilya', text: T('Zum ersten Mal seit einer Milliarde Jahren schwieg der Sturm. In der Stille hörte ich die Sterne hinter dem Horizont rufen.', 'For the first time in a billion years the storm fell silent. In the stillness I heard the stars beyond the horizon calling.') },
+  ] },
+  { id: 'p2', title: T('Hafen · Abtei der Lichtsammler', 'Port · Abbey of the Light-Gatherers'), unlock: 'port:2', lines: [
+    { who: 'vael', text: T('Ruh dich aus, Kurierin. Unsere Schmiede kann dein Licht schärfen, unser Archiv kann dir Ballast nehmen. Aber der Horizont wartet nicht.', 'Rest, courier. Our forge can sharpen your light, our archive can take your burdens. But the horizon will not wait.') },
+    { who: 'kassik', text: T('Klick. Am Tor wartet noch Arbeit. Gut bezahlt. Gefährlich. Also genau dein Ding.', 'Click. There is work waiting at the gate. Well paid. Dangerous. So exactly your kind of thing.') },
   ] },
   { id: 'k3', title: T('Kapitel III · Die Lilien von Orion', 'Chapter III · The Lilies of Orion'), unlock: 'visit:orion', lines: [
     { who: 'vael', text: T('Du trägst Lumen. Ich sehe es an den Rändern deines Schattens. Wir Motten folgen dem Licht seit Anbeginn – aber nun folgt das Dunkel uns.', 'You carry Lumen. I see it at the edges of your shadow. We moths have followed the light since the beginning – but now the dark follows us.') },
@@ -57,8 +91,8 @@ export const CHAPTERS: Chapter[] = [
     { who: 'kassik', text: T('Klick. Der Architekt hat mir das Doppelte geboten. Ich habe abgelehnt. Flieg, Kurierin. Ich halte dir den Rücken frei.', 'Click. The Architect offered me double. I declined. Fly, courier. I will cover your back.') },
     { who: 'sola', text: T('Selbst die Bank des Ewigen Orbits setzt diesmal auf dich, Schätzchen. Enttäusch die Quoten nicht.', 'Even the bank of the Eternal Orbit is betting on you this time, darling. Do not disappoint the odds.') },
   ] },
-  { id: 'k7', title: T('Kapitel VII · Licht', 'Chapter VII · Light'), unlock: 'win', lines: [
-    { who: 'ilya', text: T('Im Kern hingen sie: Tausende erloschene Sterne, aufgefädelt wie Perlen. Ich öffnete den Reaktor. Lumen zögerte – dann sprang das Licht von Stern zu Stern.', 'In the Core they hung: thousands of dead stars, strung like pearls. I opened the reactor. Lumen hesitated – then the light leapt from star to star.') },
+  { id: 'k7', title: T('Kapitel VII · Licht', 'Chapter VII · Light'), unlock: 'act:6', lines: [
+    { who: 'ilya', text: T('Am letzten Sprungtor hingen sie: Tausende erloschene Sterne, aufgefädelt wie Perlen. Ich öffnete den Reaktor. Lumen zögerte – dann sprang das Licht von Stern zu Stern.', 'At the last jump gate they hung: thousands of dead stars, strung like pearls. I opened the reactor. Lumen hesitated – then the light leapt from star to star.') },
     { who: 'herz', text: T('Danke, Ilya. Aber er ist nicht hier. Der Architekt wartet am Rand – dort, wo das Universum aufhört.', 'Thank you, Ilya. But he is not here. The Architect waits at the Edge – where the universe ends.') },
   ] },
   { id: 'epilog', title: T('Epilog · Der Rand', 'Epilogue · The Edge'), unlock: 'final', lines: [
