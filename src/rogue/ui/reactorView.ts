@@ -6,7 +6,7 @@ import { SYM } from '../data/symbols';
 import { ENEMY } from '../data/enemies';
 import { SHIP } from '../data/ships';
 import { BAL, LINES, Reactor, ReactorEvent } from '../reactor';
-import { Particles, flash, floatText, haptic, shake, slowmo, snd } from '../juice';
+import { Particles, bgmIntensity, flash, floatText, haptic, shake, slowmo, snd } from '../juice';
 import { enemySvg, shipSvg, symbolSvg } from '../art';
 import { discover, track, unlock } from '../meta';
 import { Foe, Intent, Run } from '../types';
@@ -188,7 +188,15 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       machine.style.setProperty('--heat', String(Math.min(1, c.heat / max)));
       machine.classList.toggle('hot', c.heat >= max - 1);
     }
+    // Musik eskaliert mit der Lage: Grundbedrohung des Kampfs, kritische Hülle, Boss unter halber Hülle
+    const baseThreat = kind === 'boss' ? 1 : kind === 'elite' ? 0.9 : Math.min(0.75, 0.35 + 0.1 * (ids.length - 1) + 0.12 * (Math.min(4, Math.max(1, (run.act ?? 1))) - 1));
+    function musicThreat() {
+      const hpLow = run.hp / run.maxHp < 0.35;
+      const bossLow = c.alive().some(f => (ENEMY[f.id].tier === 'boss' || ENEMY[f.id].tier === 'final') && f.hp < f.max * 0.5);
+      bgmIntensity(Math.max(baseThreat, hpLow ? 1 : 0, bossLow ? 1 : 0, c.heat >= c.heatMax - 1 ? baseThreat + 0.15 : 0));
+    }
     function renderStatus() {
+      musicThreat();
       statusEl.innerHTML = '';
       statusEl.append(chips({ block: c.block, rad: c.rad, weak: c.weak, vuln: c.vuln, str: c.str }),
         c.jam ? h('span', { class: 'sf-jam' }, `❄ ${L('Störung', 'Jam')} ${c.jam}`) : '');

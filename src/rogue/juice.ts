@@ -187,7 +187,8 @@ function loop() {
 // (auf iOS ist audio.volume schreibgeschützt). Überblenden beim Wechsel; fehlt eine Datei, spielt die generative Musik.
 export type Track = 'hub' | 'map' | 'map_frost' | 'map_orion' | 'map_pulsar' | 'map_horizont' | 'event' | 'fight' | 'fight2' | 'fight3' | 'elite' | 'boss' | 'final' | 'casino';
 const BGM_VOL: Record<string, number> = { hub: 0.5, map: 0.5, map_frost: 0.5, map_orion: 0.5, map_pulsar: 0.5, map_horizont: 0.5, event: 0.55, fight: 0.45, fight2: 0.42, fight3: 0.45, elite: 0.45, boss: 0.5, final: 0.55, casino: 0.45, win: 0.7, lose: 0.7 };
-let cur: { name: string; el: HTMLAudioElement; g: GainNode } | null = null;
+let cur: { name: string; el: HTMLAudioElement; g: GainNode; f: BiquadFilterNode } | null = null;
+let intensity01 = 1;   // 0 = gedämpft/zurückhaltend, 1 = offen und laut
 let pendingTrack: Track | null = null;   // gewünschtes Stück, während Musik stumm ist
 let bgmLevel = sfs().music;
 onSfs(st => { bgmLevel = st.music; if (cur) fadeTo(cur.g, Math.max(0.0001, BGM_VOL[cur.name] * bgmLevel), 0.3); });
@@ -198,12 +199,25 @@ function voice(name: string, loop: boolean) {
   el.loop = loop; el.preload = 'auto'; el.crossOrigin = 'anonymous';
   (el as any).playsInline = true;
   const g = a.createGain(); g.gain.value = 0.0001;
-  try { a.createMediaElementSource(el).connect(g).connect(a.destination); } catch { return null; }
-  return { el, g };
+  const f = a.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.5; f.frequency.value = cutoff(intensity01);
+  try { a.createMediaElementSource(el).connect(f).connect(g).connect(a.destination); } catch { return null; }
+  return { el, g, f };
 }
 function fadeTo(g: GainNode, v: number, s: number) {
   const a = audio(); if (!a) return;
   const t = a.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), t); g.gain.exponentialRampToValueAtTime(Math.max(0.0001, v), t + s);
+}
+const cutoff = (x: number) => 1100 * Math.pow(18, x);      // 1,1 kHz (dumpf) … ~20 kHz (offen)
+const levelOf = (x: number) => 0.72 + 0.28 * x;            // gedämpft auch etwas leiser
+/** Bedrohung der Lage 0…1: öffnet den Klang und hebt die Lautstärke (Kampf eskaliert, Hülle kritisch …). */
+export function bgmIntensity(x: number) {
+  x = Math.max(0, Math.min(1, x));
+  if (Math.abs(x - intensity01) < 0.02) return;
+  intensity01 = x;
+  const a = audio(); if (!a || !cur) return;
+  const t = a.currentTime;
+  cur.f.frequency.cancelScheduledValues(t); cur.f.frequency.setValueAtTime(cur.f.frequency.value, t); cur.f.frequency.exponentialRampToValueAtTime(cutoff(x), t + 0.9);
+  fadeTo(cur.g, Math.max(0.0001, BGM_VOL[cur.name] * bgmLevel * levelOf(x)), 0.9);
 }
 /** Hintergrundmusik wechseln (null = Stille). */
 export function bgm(name: Track | null) {
@@ -215,7 +229,7 @@ export function bgm(name: Track | null) {
   if (!v) return;
   cur = { name, ...v };
   const me = cur;
-  v.el.play().then(() => fadeTo(v.g, BGM_VOL[name] * bgmLevel, 1.6)).catch((e: DOMException) => {
+  v.el.play().then(() => fadeTo(v.g, BGM_VOL[name] * bgmLevel * levelOf(intensity01), 1.6)).catch((e: DOMException) => {
     if (cur !== me) return;
     cur = null;
     if (e?.name === 'NotAllowedError') {                      // Autoplay gesperrt: beim nächsten Tippen starten
@@ -235,7 +249,7 @@ export function sting(name: 'win' | 'lose') {
 // Im Hintergrund (App gewechselt, Bildschirm aus) pausieren
 document.addEventListener('visibilitychange', () => { if (!cur) return; if (document.hidden) cur.el.pause(); else void cur.el.play().catch(() => {}); });
 /** Zustand der Hintergrundmusik (für Tests/Anzeige). */
-export const bgmNow = () => cur ? { name: cur.name, playing: !cur.el.paused, t: Math.round(cur.el.currentTime * 10) / 10, gain: Math.round(cur.g.gain.value * 100) / 100 } : null;
+export const bgmNow = () => cur ? { name: cur.name, playing: !cur.el.paused, t: Math.round(cur.el.currentTime * 10) / 10, gain: Math.round(cur.g.gain.value * 100) / 100, hz: Math.round(cur.f.frequency.value) } : null;
 if (import.meta.env.DEV) (window as any).__bgmNow = bgmNow;
 
 // Musik wieder einschalten, wenn die Lautstärke von 0 hochgezogen wird

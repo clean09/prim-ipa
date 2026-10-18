@@ -20,7 +20,7 @@ import { onSfs } from './settings';
 /** Abheben mit Sternen-Warp. */
 const warpGo = (f: () => void) => warp(f, { ms: 1000 });
 import { goldFor } from './reactor';
-import { Particles, bgm, countUp, flash, haptic, shake, snd, sting } from './juice';
+import { Particles, bgm, bgmIntensity, countUp, flash, haptic, shake, snd, sting } from './juice';
 import {
   ACHIEVEMENTS, GOALS, canResearch, discover, packUnlocked, finishRun, level, meta, nextGoal, onAchievement, onChapter, onGoal, research, researchProgress,
   saveMeta, shipUnlocked, story, track, unlock, weekKey,
@@ -82,7 +82,7 @@ export class Game {
     // Musik je Lage (Kampf wählt selbst, Ergebnis spielt einen Jingle)
     const mapTrack = ({ guertel: 'map', frost: 'map_frost', orion: 'map_orion', pulsar: 'map_pulsar', horizont: 'map_horizont', kern: 'map_pulsar', rand: 'event' } as const)[(sec?.id ?? 'guertel') as 'guertel'] ?? 'map';
     const track = ({ hub: 'hub', map: mapTrack, event: 'event', rest: 'event', chest: 'event', reward: mapTrack, shop: 'casino', casino: 'casino' } as const)[word as 'hub'];
-    if (track) bgm(track);
+    if (track) { bgmIntensity(word === 'hub' ? 0.8 : 0.85); bgm(track); }
     if (word !== 'fight') this.sky.set(word === 'hub' ? 'rand' : theme && word === 'map' ? theme : sec?.theme ?? 'rand', mood, word === 'hub' ? undefined : bg ?? sec?.bg);
     if (bg) { this.view.style.setProperty('--bg1', bg[0]); this.view.style.setProperty('--bg2', bg[1]); this.view.style.setProperty('--pat', sectorPattern(theme ?? 'x', '#c9a45c')); }
   }
@@ -385,7 +385,10 @@ export class Game {
     const sec = SECTOR[sectorOf(run)];
     const r = rngOf(run);
     const ids = kind === 'boss' ? [pick(r, sec.bosses)] : kind === 'elite' ? pick(r, sec.elite) : pick(r, run.floor <= 3 ? sec.easy : sec.hard);
-    bgm(kind === 'boss' ? (ids[0] === 'architekt' ? 'final' : 'boss') : kind === 'elite' ? 'elite' : (['fight', 'fight2', 'fight3'] as const)[run.floor % 3]);
+    // Musik nach Bedrohung: kleine Gegner leise-spannend, je stärker desto wuchtiger
+    const threat = kind === 'boss' ? (ids[0] === 'architekt' ? 5 : 4) : kind === 'elite' ? 3 : Math.min(2, sec.tier - 1 + (run.floor > 3 ? 1 : 0) + (ids.length >= 3 ? 1 : 0));
+    bgm((['fight3', 'fight', 'fight2', 'elite', 'boss', 'final'] as const)[threat]);
+    bgmIntensity([0.35, 0.55, 0.75, 0.9, 1, 1][threat]);
     this.clear('fight');
     this.sky.set(sec.theme, kind === 'boss' ? 'boss' : kind === 'elite' ? 'elite' : 'fight', sec.bg);
     const res = await runFight(this.view, run, ids, kind, this.particles, sec.bg, () => { this.save(); this.hub(); });
