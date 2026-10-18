@@ -13,6 +13,8 @@ import { Foe, Intent, Run } from '../types';
 import { moduleEl, roman, showConsts, showReels, tx } from './parts';
 import { CONST } from '../data/constellations';
 import { TRAIT, traitsOf } from '../data/traits';
+import { TAG_INFO } from '../data/symbols';
+import { ornament } from '../art';
 
 export interface FightResult { won: boolean; killedBy: string; boss: boolean; overheats: number }
 
@@ -44,14 +46,29 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
     const diedAt = new Map<number, number>();
     const cellEl: HTMLElement[][] = [[], [], []];
     let busy = false;
+    let reactorRef: Reactor | null = null;
+    const reactor = () => reactorRef!;
+    let lastFire: { reel: number; row: number; color: string } | null = null;   // Quelle für Geschosse
+    const seen = new Set<number>();                                               // Gegner, die schon eingewarpt sind
     let overheatsHere = 0;
 
     const center = (el?: Element | null) => { const r = (el ?? root).getBoundingClientRect(), hr = host.getBoundingClientRect(); return [r.left - hr.left + r.width / 2, r.top - hr.top + r.height / 2] as const; };
+    /** Lichtgeschoss von der feuernden Zelle zum Gegner (Farbe der Familie). */
+    function bolt(toEl: Element | null | undefined, color: string, big: boolean) {
+      if (!lastFire || !toEl) return;
+      const from = cellEl[lastFire.reel]?.[lastFire.row]; if (!from) return;
+      const [x1, y1] = center(from), [x2, y2] = center(toEl);
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+      const b = h('i', { class: 'sf-bolt' + (big ? ' big' : ''), style: { left: `${x1}px`, top: `${y1}px`, width: `${len}px`, transform: `rotate(${Math.atan2(dy, dx)}rad)`, '--bc': color } as any });
+      fx.append(b); setTimeout(() => b.remove(), 420);
+      particles.burst(x2, y2, big ? 14 : 6, parseInt(color.slice(1), 16), big ? 200 : 120);
+    }
     const ui = {
       emit(e: ReactorEvent) {
         switch (e.t) {
           case 'hitFoe': {
             const el = foeNode.get(e.uid); const [x, y] = center(el);
+            if (lastFire) bolt(el, lastFire.color, e.crit);
             if (e.n > 0) {
               floatText(fx, x, y - 10, `−${e.n}`, e.crit ? 'crit' : 'dmg');
               particles.burst(x, y, e.crit ? 36 : 12, e.crit ? 0xe8c070 : 0xe07a6a, e.crit ? 300 : 180);
@@ -63,7 +80,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
           case 'hitHero': { const [x, y] = center(statusEl); if (e.n > 0) { floatText(fx, x, y - 20, `−${e.n}`, 'hurt'); snd.hurt(); shake(root, e.n >= 15 ? 2.4 : 1.1); flash(root, 'rgba(200,60,60,.32)'); haptic('error'); } else if (e.blocked) { floatText(fx, x, y - 20, `⛨ ${e.blocked}`, 'blk'); snd.block(); } break; }
           case 'block': { const [x, y] = center(statusEl); if (e.n > 0) floatText(fx, x - 40, y - 20, `+${e.n} ⛨`, 'blk'); break; }
           case 'heal': { const [x, y] = center(statusEl); floatText(fx, x + 40, y - 20, `+${e.n}`, 'heal'); break; }
-          case 'fire': { const c = cellEl[e.reel]?.[e.row]; if (c) { c.classList.remove('fire'); void c.offsetWidth; c.classList.add('fire'); if (e.m >= 2) c.classList.add('m' + Math.min(3, e.m)); } snd.card(); break; }
+          case 'fire': { const sym = reactor().grid[e.reel]?.[e.row]; lastFire = { reel: e.reel, row: e.row, color: sym ? TAG_INFO[SYM[sym.id].tag].color : '#e8c070' }; const cel = cellEl[e.reel]?.[e.row]; if (cel) { cel.classList.remove('fire', 'flare'); void cel.offsetWidth; cel.classList.add('fire', 'flare'); if (e.m >= 2) cel.classList.add('m' + Math.min(3, e.m)); } snd.card(); break; }
           case 'line': drawLine(e.cells.map(c => [c.reel, c.row] as [number, number]), e.kind);
             if (e.kind === 'jackpot') { snd.jackpot(); flash(root, 'rgba(232,192,112,.5)', 600); shake(root, 2); haptic('success'); const [x, y] = center(reelsEl); particles.burst(x, y, 90, 0xe8c070, 380, 4); }
             else { snd.prime(2); const [x, y] = center(reelsEl); particles.burst(x, y, 24, 0x9fd0c8, 220); }
@@ -84,6 +101,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
     };
 
     const c = new Reactor(run, ids, ui, kind);
+    reactorRef = c;
     {
       const act = Object.entries(c.cl).filter(([, t]) => t > 0);
       if (act.length) crest.append(...act.map(([id, t]) => h('span', { class: 'sf-cchip', style: { '--cc': CONST[id].color } as any }, `${CONST[id].icon} ${roman(t)}`)));
@@ -137,7 +155,8 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         if (f.dead && now - (diedAt.get(f.uid) ?? 0) > 650) continue;
         const d = ENEMY[f.id];
         const [ic, num, cls] = intentOf(f.intent, f);
-        const el = h('div', { class: `sf-foe ${d.tier}${f.dead ? ' dead' : ''}${c.target === f ? ' tgt' : ''}` },
+        const fresh = !seen.has(f.uid); seen.add(f.uid);
+        const el = h('div', { class: `sf-foe ${d.tier}${f.dead ? ' dead' : ''}${c.target === f ? ' tgt' : ''}${fresh ? ' warpin' : ''}` },
           f.dead ? '' : h('div', { class: 'sf-intent ' + cls }, h('b', null, ic), num),
           h('div', { class: 'sf-foeart', html: enemySvg(d.look) }),
           h('div', { class: 'sf-fname' }, tx(d.name)),
@@ -160,6 +179,8 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       const next = c.spinHeat();
       heatEl.append(h('small', null, L('Hitze', 'Heat')), segs, h('b', { class: c.heat + next > max ? 'warn' : '' }, `${c.heat}/${max}`));
       heatEl.classList.toggle('danger', c.heat + next > max);
+      machine.style.setProperty('--heat', String(Math.min(1, c.heat / max)));
+      machine.classList.toggle('hot', c.heat >= max - 1);
     }
     function renderStatus() {
       statusEl.innerHTML = '';
@@ -259,12 +280,21 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
     endBtn.addEventListener('click', async () => {
       if (busy || c.over) return;
       busy = true; renderStatus();
+      lastFire = null;
+      turnBanner(L('Gegnerzug', 'Enemy turn'), 'foe');
+      await new Promise(r => setTimeout(r, 450));
       await c.endTurn();
+      if (!c.over) turnBanner(L(`Dein Zug · Runde ${c.turn}`, `Your turn · round ${c.turn}`), 'me');
       busy = false;
       renderReelsStatic(); renderFoes(); renderStatus();
       after();
     });
 
+    function turnBanner(text: string, who: 'me' | 'foe') {
+      root.querySelector('.sf-turn')?.remove();
+      const b = h('div', { class: 'sf-turn ' + who }, h('span', null, text));
+      root.append(b); setTimeout(() => b.remove(), 1300);
+    }
     function after() {
       if (overheatsHere >= 3) unlock('overheat3');
       if (!c.over) return;
@@ -285,7 +315,20 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
 
     c.start();
     renderReelsStatic(); renderFoes(); renderStatus();
-    if (kind === 'boss') { flash(root, 'rgba(160,60,60,.45)', 800); shake(root, 2); }
+    if (kind === 'boss') {
+      const bd = ENEMY[ids[0]];
+      busy = true; renderStatus();
+      const card = h('div', { class: 'sf-bossintro' },
+        h('small', null, bd.tier === 'final' ? L('Das Ende aller Sterne', 'The end of all stars') : L('Wächter des Sektors', 'Guardian of the sector')),
+        h('div', { class: 'art', html: enemySvg(bd.look) }),
+        h('b', null, tx(bd.name)), h('div', { html: ornament(220) }),
+        bd.passive ? h('p', null, tx(bd.passive)) : '',
+        h('div', { class: 'sf-traits big' }, traitsOf(bd.id).map(t => h('span', { class: TRAIT[t].good ? 'good' : 'bad' }, `${TRAIT[t].icon} ${tx(TRAIT[t].name)}`))));
+      root.append(card);
+      snd.jackpot(); shake(root, 2); flash(root, 'rgba(160,60,60,.45)', 800); haptic('error');
+      const close = () => { if (!card.isConnected) return; card.classList.add('out'); setTimeout(() => card.remove(), 500); busy = false; renderStatus(); };
+      card.addEventListener('click', close); setTimeout(close, 3200);
+    } else turnBanner(L('Kampf!', 'Fight!'), 'me');
   });
 }
 
