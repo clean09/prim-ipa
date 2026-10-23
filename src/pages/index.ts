@@ -14,6 +14,7 @@ import { mountPrime } from './prime';
 import { mountRam } from './ram';
 import { mountStar } from './star';
 import { mountRogue } from './rogue';
+import { mountSolar } from './solar';
 
 export interface Page {
   id: string;
@@ -34,6 +35,7 @@ const B = () => L('Benchmark', 'Benchmark'), S = () => L('Simulation', 'Simulati
 const list: Page[] = [
   { id: 'home', title: () => 'PrimSieb', noHead: true, mount: mountHome },
   { id: 'star', title: () => L('Sternenleben', 'Star life'), kicker: S, full: true, help: 'star', keys: 'stern star sonne supernova nebel hr', mount: mountStar },
+  { id: 'solar', title: () => L('Sonnensystem', 'Solar system'), kicker: S, parent: 'more', full: true, keys: 'sonne planeten mond mars jupiter saturn komet mission apollo voyager finsternis bahn kepler', mount: mountSolar },
   { id: 'games', title: () => L('Spiele', 'Games'), kicker: () => L('Spielen', 'Play'), keys: 'spiel game jagd blitz pi', mount: mountGames },
   { id: 'play', title: () => L('Spiel', 'Game'), parent: 'games', full: true, mount: mountPlay },
   { id: 'rogue', title: () => 'Sternenfall', parent: 'games', full: true, keys: 'roguelike sternenfall weltall slots casino story', mount: mountRogue },

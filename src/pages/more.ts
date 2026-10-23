@@ -26,6 +26,7 @@ export function mountMore(root: HTMLElement) {
     sec('B', L('Simulationen', 'Simulations')),
     h('div', { class: 'ed-list' },
       row(['sun', 30], L('Sternenleben', 'Star life'), L('Sternentwicklung in 3D', 'Stellar evolution in 3D'), 'star'),
+      row(['moon', 210], L('Sonnensystem', 'Solar system'), L('Echte Bahnen · Missionen · Finsternisse', 'Real orbits · missions · eclipses'), 'solar'),
       row(['blackhole', 28], L('Singularität', 'Singularity'), L('Schwarzes Loch · 60-s-Testflug', 'Black hole · 60 s flight test'), 'bh'),
       row(['nebula', 130], L('Mathe-Labor', 'Math lab'), L('π · Fibonacci · N-Körper · Collatz', 'π · Fibonacci · N-body · Collatz'), 'lab')),
     sec('C', L('System', 'System')),

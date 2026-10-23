@@ -38,7 +38,7 @@ const TABS: [string, IconName, () => string][] = [
   ['more', 'more', () => L('Alles', 'All')],
 ];
 /** Reihenfolge aller Seiten (für Seitennummer und Fahrtrichtung). */
-const ORDER = ['home', 'star', 'games', 'rogue', 'play', 'device', 'more', 'prime', 'ai', 'ram', 'bh', 'lab', 'board', 'check', 'info'];
+const ORDER = ['home', 'star', 'solar', 'games', 'rogue', 'play', 'device', 'more', 'prime', 'ai', 'ram', 'bh', 'lab', 'board', 'check', 'info'];
 
 function renderTabs() {
   tabsEl.querySelectorAll('button').forEach(b => b.remove());
