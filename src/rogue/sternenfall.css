@@ -846,3 +846,22 @@ button.sf-crest { margin: 0 0 8px; min-height: 20px; color: var(--gold2); }
 :root:not([data-gfx="high"]) .sf-machine.hot::after { animation-duration: 2s; }
 :root:not([data-gfx="high"]) .sf-lines-map path.on { animation: none; }
 .sf, .sf *, body.sf-on .sheet, .sf-story, .sf-banner { font-variant-emoji: text; }
+
+/* ===================================================================================== Drehen & Effekte (v4.8)
+   Krone ohne SVG-Animation (die zwang den ganzen Reaktor jedes Bild neu zu zeichnen), Walzen als Bildkachel,
+   Aufleuchten über eine feste Ebene mit Deckkraft. */
+.sf-crown svg .gem { animation: none !important; }
+.sf-crown { contain: layout paint; }
+.sf-gemglow { position: absolute; left: 50%; top: 44%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(200,255,250,.85), rgba(111,227,224,.35) 40%, transparent 70%); will-change: opacity; animation: gemGlow 2.6s ease-in-out infinite alternate; }
+@keyframes gemGlow { from { opacity: .25; } to { opacity: .9; } }
+.sf-machine.spinning .sf-gemglow { animation-duration: .45s; }
+.sf-machine.spinning { animation: none; }
+.sf-filler { background-repeat: repeat-y; }
+.sf-cell .sf-glow { position: absolute; inset: 6%; border-radius: 50%; background: radial-gradient(circle, rgba(255,244,210,.8), rgba(255,220,150,0) 70%); opacity: 0; pointer-events: none; will-change: opacity; }
+.sf-cell.fire::after, .sf-cell.flare::after { content: none; }
+.sf-cell.m3, .sf-cell.m4 { animation: none; }
+.sf-lines .sf-line polyline { filter: none; stroke-width: 3; }
+.sf-lines .sf-line.jackpot polyline { filter: none; stroke-width: 5; }
+.sf-log { animation: none !important; opacity: 0; }
+.sf-foe.hurt .sf-foeart { animation: none; }

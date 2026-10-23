@@ -561,6 +561,8 @@ export function prewarmArt(syms: { art: string; c1: string; c2: string }[], foes
 }
 const img = (src: string, cls: string) => `<img class="${cls}" src="${src}" alt="" draggable="false" decoding="async">`;
 /** Symbolmotiv als zwischengespeichertes Bild (Walzen, Karten, Vorschau). */
+/** Bildquelle eines Symbols (PNG, sobald gerastert; sonst SVG) – für die Walzenstreifen. */
+export const symbolSrc = (art: string, c1: string, c2: string) => cachedUrl(`s|${art}|${c1}|${c2}`, () => symbolSvg(art, c1, c2, false, true));
 export function symbolHtml(art: string, c1: string, c2: string) {
   if (sfs().gfx === 'low') return symbolSvg(art, c1, c2, true);
   return img(cachedUrl(`s|${art}|${c1}|${c2}`, () => symbolSvg(art, c1, c2, false, true)), 'sym-img');

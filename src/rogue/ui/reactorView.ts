@@ -7,7 +7,7 @@ import { ENEMY } from '../data/enemies';
 import { SHIP } from '../data/ships';
 import { BAL, LINES, Reactor, ReactorEvent } from '../reactor';
 import { Particles, bgmIntensity, flash, floatText, haptic, shake, slowmo, snd } from '../juice';
-import { enemyHtml, shipHtml, symbolHtml } from '../art';
+import { enemyHtml, shipHtml, symbolHtml, symbolSrc } from '../art';
 import { skyHold } from '../sky';
 import { discover, meta, saveMeta, track, unlock } from '../meta';
 import { Foe, Intent, Run } from '../types';
@@ -40,6 +40,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
     const crest = h('button', { class: 'sf-crest', onclick: () => showConsts(run) });
     // Jugendstil-Krone mit Sternenherz-Kristall, seitliche Hitzesäulen
     const crown = h('div', { class: 'sf-crown', html: crownSvg(run.ship) });
+    crown.append(h('i', { class: 'sf-gemglow' }));
     const pillar = (side: string) => h('div', { class: 'sf-pillar ' + side }, h('i'));
     const machine = h('div', { class: 'sf-machine', 'data-ship': run.ship },
       crown, pillar('l'), pillar('r'),
@@ -59,7 +60,19 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
     const seen = new Set<number>();                                               // Gegner, die schon eingewarpt sind
     let overheatsHere = 0;
 
-    const center = (el?: Element | null) => { const r = (el ?? root).getBoundingClientRect(), hr = host.getBoundingClientRect(); return [r.left - hr.left + r.width / 2, r.top - hr.top + r.height / 2] as const; };
+    // Mittelpunkte zwischenspeichern: Lesen nach DOM-Änderungen erzwingt sonst jedes Mal ein Neu-Layout (iPhone!)
+    const centers = new Map<Element, readonly [number, number]>();
+    let hostRect: DOMRect | null = null;
+    const center = (el?: Element | null) => {
+      const e = el ?? root; const hit = centers.get(e); if (hit) return hit;
+      hostRect ??= host.getBoundingClientRect();
+      const r = e.getBoundingClientRect(), p = [r.left - hostRect.left + r.width / 2, r.top - hostRect.top + r.height / 2] as const;
+      centers.set(e, p); return p;
+    };
+    const forget = () => { centers.clear(); hostRect = null; };
+    addEventListener('resize', forget);
+    const pulse = (el: Element | null | undefined, frames: Keyframe[], ms: number) => { (el as HTMLElement | null)?.animate?.(frames, { duration: ms * pace(), easing: 'ease-out' }); };
+    const shakeEl = (n: number) => { if (!sfs().shake || document.documentElement.dataset.motion === 'reduced') return; const k = Math.min(3, n) * 5; root.animate([{ transform: 'none' }, { transform: `translate(${k}px,${-k / 2}px)` }, { transform: `translate(${-k}px,${k * 0.4}px)` }, { transform: `translate(${k * 0.6}px,${k * 0.6}px)` }, { transform: 'none' }], { duration: 380 }); };
     /** Lichtgeschoss von der feuernden Zelle zum Gegner (Farbe der Familie). */
     function bolt(toEl: Element | null | undefined, color: string, big: boolean) {
       if (!lastFire || !toEl) return;
@@ -79,26 +92,26 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
             if (e.n > 0) {
               floatText(fx, x, y - 10, `−${e.n}`, e.crit ? 'crit' : 'dmg');
               particles.burst(x, y, e.crit ? 36 : 12, e.crit ? 0xe8c070 : 0xe07a6a, e.crit ? 300 : 180);
-              snd.hit(e.crit); if (e.crit) shake(root, 1.6);
-              el?.classList.remove('hurt'); void el?.offsetWidth; el?.classList.add('hurt');
+              snd.hit(e.crit); if (e.crit) shakeEl(1.6);
+              pulse(el?.querySelector('.sf-foeart'), [{ transform: 'none', opacity: 1 }, { transform: 'translateX(-7px) scale(.94)', opacity: .55 }, { transform: 'translateX(5px)', opacity: 1 }, { transform: 'none' }], 350);
             } else floatText(fx, x, y - 10, e.blocked ? `⛨${e.blocked}` : '0', 'blk');
             break;
           }
-          case 'hitHero': { const [x, y] = center(statusEl); if (e.n > 0) { floatText(fx, x, y - 20, `−${e.n}`, 'hurt'); snd.hurt(); shake(root, e.n >= 15 ? 2.4 : 1.1); flash(root, 'rgba(200,60,60,.32)'); haptic('error'); } else if (e.blocked) { floatText(fx, x, y - 20, `⛨ ${e.blocked}`, 'blk'); snd.block(); } break; }
+          case 'hitHero': { const [x, y] = center(statusEl); if (e.n > 0) { floatText(fx, x, y - 20, `−${e.n}`, 'hurt'); snd.hurt(); shakeEl(e.n >= 15 ? 2.4 : 1.1); flash(root, 'rgba(200,60,60,.32)'); haptic('error'); } else if (e.blocked) { floatText(fx, x, y - 20, `⛨ ${e.blocked}`, 'blk'); snd.block(); } break; }
           case 'block': { const [x, y] = center(statusEl); if (e.n > 0) floatText(fx, x - 40, y - 20, `+${e.n} ⛨`, 'blk'); break; }
           case 'heal': { const [x, y] = center(statusEl); floatText(fx, x + 40, y - 20, `+${e.n}`, 'heal'); break; }
-          case 'fire': { const sym = reactor().grid[e.reel]?.[e.row]; lastFire = { reel: e.reel, row: e.row, color: sym ? TAG_INFO[SYM[sym.id].tag].color : '#e8c070' }; const cel = cellEl[e.reel]?.[e.row]; if (cel) { cel.classList.remove('fire', 'flare'); void cel.offsetWidth; cel.classList.add('fire', 'flare'); if (e.m >= 2) cel.classList.add('m' + Math.min(3, e.m)); } snd.card(); break; }
+          case 'fire': { const sym = reactor().grid[e.reel]?.[e.row]; lastFire = { reel: e.reel, row: e.row, color: sym ? TAG_INFO[SYM[sym.id].tag].color : '#e8c070' }; const cel = cellEl[e.reel]?.[e.row]; if (cel) { pulse(cel.firstElementChild, [{ transform: 'none' }, { transform: 'scale(1.14)', offset: 0.4 }, { transform: 'none' }], 400); pulse(cel.querySelector('.sf-glow'), [{ opacity: 0 }, { opacity: 1, offset: 0.35 }, { opacity: 0 }], 420); if (e.m >= 2) cel.classList.add('m' + Math.min(3, e.m)); } snd.card(); break; }
           case 'line': drawLine(e.cells.map(c => [c.reel, c.row] as [number, number]), e.kind);
-            if (e.kind === 'jackpot') { snd.jackpot(); flash(root, 'rgba(232,192,112,.5)', 600); shake(root, 2); haptic('success'); const [x, y] = center(reelsEl); particles.burst(x, y, 90, 0xe8c070, 380, 4); }
+            if (e.kind === 'jackpot') { snd.jackpot(); flash(root, 'rgba(232,192,112,.5)', 600); shakeEl(2); haptic('success'); const [x, y] = center(reelsEl); particles.burst(x, y, 90, 0xe8c070, 380, 4); }
             else { snd.prime(2); const [x, y] = center(reelsEl); particles.burst(x, y, 24, 0x9fd0c8, 220); }
             break;
-          case 'kill': { const el = foeNode.get(e.uid); const [x, y] = center(el); particles.burst(x, y, e.boss ? 180 : 50, e.boss ? 0xf0d080 : 0xe0a070, e.boss ? 420 : 260, e.boss ? 5 : 3); snd.kill(); el?.classList.add('dead'); diedAt.set(e.uid, performance.now()); if (e.boss) { snd.bosskill(); slowmo(root, particles, 1800); flash(root, '#fff6dc', 700); shake(root, 3); haptic('success'); } break; }
+          case 'kill': { const el = foeNode.get(e.uid); const [x, y] = center(el); particles.burst(x, y, e.boss ? 180 : 50, e.boss ? 0xf0d080 : 0xe0a070, e.boss ? 420 : 260, e.boss ? 5 : 3); snd.kill(); el?.classList.add('dead'); diedAt.set(e.uid, performance.now()); if (e.boss) { snd.bosskill(); slowmo(root, particles, 1800); flash(root, '#fff6dc', 700); shakeEl(3); haptic('success'); } break; }
           case 'rad': { const el = foeNode.get(e.uid); const [x, y] = center(el); floatText(fx, x, y + 14, e.n > 0 ? `☢ −${e.n}` : `☢ +${-e.n}`, 'psn'); break; }
-          case 'log': logEl.textContent = e.text; logEl.classList.remove('in'); void logEl.offsetWidth; logEl.classList.add('in'); break;
+          case 'log': logEl.textContent = e.text; logEl.animate([{ opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], { duration: 2800 }); break;
           case 'foeNote': { const el = foeNode.get(e.uid); const [x, y] = center(el); floatText(fx, x, y - 30, e.text, e.good ? 'heal' : 'blk'); break; }
-          case 'shake': shake(root, e.n); break;
+          case 'shake': shakeEl(e.n); break;
           case 'gold': if (e.n) { const [x, y] = center(statusEl); floatText(fx, x, y - 44, `${e.n > 0 ? '+' : ''}${e.n} ✦`, 'gold'); snd.coin(); } break;
-          case 'overheat': overheatsHere++; snd.overheat(); flash(root, 'rgba(255,90,40,.5)', 700); shake(root, 2.5); machine.classList.remove('overheat'); void machine.offsetWidth; machine.classList.add('overheat'); { const [x, y] = center(heatEl); particles.burst(x, y, 60, 0xd0d0d0, 200, 6); } break;
+          case 'overheat': overheatsHere++; snd.overheat(); flash(root, 'rgba(255,90,40,.5)', 700); shakeEl(2.5); { const [x, y] = center(heatEl); particles.burst(x, y, 60, 0xd0d0d0, 200, 6); } break;
           case 'heat': renderHeat(); break;
           case 'enemyAct': foeNode.get(e.uid)?.classList.add('acting'); setTimeout(() => foeNode.get(e.uid)?.classList.remove('acting'), 500); break;
           case 'spawn': break;
@@ -160,8 +173,12 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       if (!a) { a = h('div', { class: 'sf-foeart', html: enemyHtml(look) }); artOf.set(uid, a); }
       return a;
     }
+    let foeSig = '';
     function renderFoes() {
       const now = performance.now();
+      const sig = c.foes.map(f => [f.uid, f.hp, f.max, f.block, f.str, f.weak, f.vuln, f.rad, f.stun, f.dead && now - (diedAt.get(f.uid) ?? 0) > 650 ? 'x' : f.dead, JSON.stringify(f.intent), c.target === f].join(':')).join('|');
+      if (sig === foeSig) return;
+      foeSig = sig; forget();
       foesEl.innerHTML = '';
       foesEl.dataset.n = String(c.alive().length);
       for (const f of c.foes) {
@@ -202,7 +219,11 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       const bossLow = c.alive().some(f => (ENEMY[f.id].tier === 'boss' || ENEMY[f.id].tier === 'final') && f.hp < f.max * 0.5);
       bgmIntensity(Math.max(baseThreat, hpLow ? 1 : 0, bossLow ? 1 : 0, c.heat >= c.heatMax - 1 ? baseThreat + 0.15 : 0));
     }
+    let statSig = '';
     function renderStatus() {
+      const sig = [c.block, c.rad, c.weak, c.vuln, c.str, c.jam, run.hp, run.maxHp, run.gold, run.modules.length, c.heat, c.heatMax, c.spinsLeft, c.spin, busy, !!c.over, c.canSpin(), c.held.join(), c.nudge.join(), [0, 1, 2].map(r => c.peek(r).id).join()].join('|');
+      if (sig === statSig) return;
+      statSig = sig; forget();
       musicThreat();
       statusEl.innerHTML = '';
       statusEl.append(chips({ block: c.block, rad: c.rad, weak: c.weak, vuln: c.vuln, str: c.str }),
@@ -231,10 +252,36 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
     }
     function cell(s: { id: string; lv: number }, lite = false) {
       const d = SYM[s.id];
-      return h('div', { class: `sf-cell t-${d.tag}${d.wild ? ' wild' : ''}` }, h('div', { class: 'sf-cellart', html: symbolHtml(d.art, d.c1, d.c2) }), s.lv > 1 ? h('i', null, ['', '', 'II', 'III'][s.lv]) : '');
+      return h('div', { class: `sf-cell t-${d.tag}${d.wild ? ' wild' : ''}` }, h('div', { class: 'sf-cellart', html: symbolHtml(d.art, d.c1, d.c2) }), h('b', { class: 'sf-glow' }), s.lv > 1 ? h('i', null, ['', '', 'II', 'III'][s.lv]) : '');
+    }
+    // Walzenstreifen: die Symbole einer Walze einmal als ein Bild (Kachel) – beim Drehen läuft dann EIN Element statt ~25
+    const strips = new Map<string, string>(), stripBusy = new Set<string>();
+    let stripDims: [number, number] = [0, 0];
+    const stripKey = (r: number, w: number, hh: number) => `${run.reels[r].map(s => s.id).join(',')}@${w}x${hh}`;
+    function prepStrips() {
+      const col = reelsEl.firstElementChild as HTMLElement | null; if (!col) return;
+      const w = Math.round(col.clientWidth), hh = Math.round(reelsEl.clientHeight / 3); if (!w || !hh) return;
+      stripDims = [w, hh];
+      const dpr = Math.min(2, devicePixelRatio || 1);
+      for (let r = 0; r < 3; r++) {
+        const key = stripKey(r, w, hh); if (strips.has(key) || stripBusy.has(key)) continue;
+        stripBusy.add(key);
+        const ids = run.reels[r].map(s => s.id), cv = document.createElement('canvas');
+        cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr) * ids.length;
+        const g = cv.getContext('2d')!, sw = cv.width, sh = Math.round(hh * dpr), a = Math.min(sw, sh) * 0.84;
+        let left = ids.length;
+        const done = () => { if (--left > 0) return; cv.toBlob(b => { if (b) strips.set(key, URL.createObjectURL(b)); stripBusy.delete(key); }, 'image/png'); };
+        ids.forEach((id, i) => {
+          const d = SYM[id], im = new Image();
+          im.onload = () => { try { g.drawImage(im, (sw - a) / 2, i * sh + (sh - a) / 2, a, a); } catch { /* egal */ } g.fillStyle = 'rgba(201,164,92,.12)'; g.fillRect(0, (i + 1) * sh - dpr, sw, dpr); done(); };
+          im.onerror = done;
+          im.src = symbolSrc(d.art, d.c1, d.c2);
+        });
+      }
     }
     function renderReelsStatic() {
-      reelsEl.innerHTML = '';
+      reelsEl.innerHTML = ''; forget();
+      setTimeout(prepStrips, 60);
       for (let r = 0; r < 3; r++) {
         const col = h('div', { class: 'sf-reel' + (c.held[r] ? ' held' : c.nudge[r] ? ' nudged' : '') });
         const strip = h('div', { class: 'sf-strip' });
@@ -256,8 +303,15 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         const reel = run.reels[r];
         const nudged = nudgeBefore[r] && oldGrid[r];
         const extra = heldBefore[r] ? 0 : nudged ? 1 : 16 + r * 7;
-        const seq = nudged ? [oldGrid[r][0], ...c.grid[r]] : [...Array.from({ length: extra }, () => reel[Math.floor(Math.random() * reel.length)]), ...c.grid[r]];
-        seq.forEach(s => strip.append(cell(s)));
+        const tileUrl = !nudged && extra ? strips.get(stripKey(r, stripDims[0], stripDims[1])) : undefined;
+        if (tileUrl) {
+          const len = reel.length;
+          strip.append(h('div', { class: 'sf-filler', style: { height: `${extra * cellH}px`, backgroundImage: `url(${tileUrl})`, backgroundSize: `100% ${len * cellH}px`, backgroundPosition: `0 ${-Math.floor(Math.random() * len) * cellH}px` } }));
+          c.grid[r].forEach(s => strip.append(cell(s)));
+        } else {
+          const seq = nudged ? [oldGrid[r][0], ...c.grid[r]] : [...Array.from({ length: extra }, () => reel[Math.floor(Math.random() * reel.length)]), ...c.grid[r]];
+          seq.forEach(s => strip.append(cell(s)));
+        }
         cellEl[r] = [...strip.children].slice(-3) as HTMLElement[];
         col.append(strip);
         reelsEl.append(col);
@@ -296,6 +350,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
       machine.classList.add('spinning');
       await animateSpin(heldBefore, nudgeBefore, oldGrid);
       machine.classList.remove('spinning');
+      renderReelsStatic();
       renderStatus();
       await c.resolve();
       busy = false;
