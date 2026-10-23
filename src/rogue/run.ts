@@ -189,7 +189,7 @@ export const removeCost = (run: Run) => Math.round((40 + 15 * run.removes) * pri
 export const upgradeCost = (run: Run, lv: number) => Math.round((40 + lv * 30) * priceMult(run));
 
 // ------------------------------------------------------------------------------------------- Ergebnisse (Ereignisse, Wracks)
-export function applyOutcomes(run: Run, list: Outcome[]): { lines: string[]; pickSymbol?: string[]; remove?: boolean; upgrade?: boolean; fight?: 'normal' | 'elite' } {
+export function applyOutcomes(run: Run, list: Outcome[]): { lines: string[]; pickSymbol?: string[]; remove?: number; upgrade?: number; fight?: 'normal' | 'elite' } {
   const rc = runCtx(run);
   const lines: string[] = [];
   const res: ReturnType<typeof applyOutcomes> = { lines };
@@ -204,8 +204,8 @@ export function applyOutcomes(run: Run, list: Outcome[]): { lines: string[]; pic
       if (id) { addModule(run, id); lines.push(`${MOD[id].icon} ${MOD[id].name[0]}`); }
     }
     if (o.curse) { const id = typeof o.curse === 'string' && SYM[o.curse] ? o.curse : pick(rc.rnd, ['schrott', 'leck', 'parasit', 'dunkelnebel', 'falschgeld']); rc.addSymbol(id); lines.push(`☠ ${SYM[id].name[0]}`); }
-    if (o.removeCard) res.remove = true;
-    if (o.upgradeCard) res.upgrade = true;
+    if (o.removeCard) res.remove = (res.remove ?? 0) + 1;
+    if (o.upgradeCard) res.upgrade = (res.upgrade ?? 0) + 1;
     if (o.fight) res.fight = o.fight;
   }
   return res;

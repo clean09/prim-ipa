@@ -154,7 +154,7 @@ export function playChapter(chId: string): Promise<void> {
         stage.append(big); setTimeout(() => stage.querySelectorAll('.sf-bigp.out').forEach(x => x.remove()), 600);
       }
       box.innerHTML = '';
-      box.append(h('div', { class: 'sf-line' }, portrait(line.who), h('div', null, h('b', { style: { color: `hsl(${c?.hue ?? 40} 60% 72%)` } }, c ? tx(c.name) : ''), h('small', null, c ? tx(c.role) : ''), h('p'))));
+      box.append(h('div', { class: 'sf-line' }, portrait(line.who), h('div', null, h('b', { style: { color: `hsl(${c?.hue ?? 40} 55% 26%)` } }, c ? tx(c.name) : ''), h('small', null, c ? tx(c.role) : ''), h('p'))));
       full = tx(line.text); let k = 0;
       clearInterval(typing);
       typing = window.setInterval(() => { const p = textEl(); if (!p) return; k += 2; p.textContent = full.slice(0, k); if (k >= full.length) clearInterval(typing); }, 18);

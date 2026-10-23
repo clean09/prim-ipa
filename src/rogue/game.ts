@@ -408,7 +408,7 @@ export class Game {
     if (!this.view.isConnected) return;
     if (!res.won) { void this.result(false, res.killedBy); return; }
     for (const id of run.modules) MOD[id]?.onCombatEnd?.(runCtx(run), true);
-    if (kind === 'elite') { run.stats.elites++; track('elites', 1); }
+    if (kind === 'elite') { run.stats.elites++; track('elites', 1); story(`elite:${sec.id}`); }
     if (kind === 'boss') {
       run.stats.bosses++; track('bosses', 1);
       const m = meta(); if (!m.bossKills.includes(ids[0])) { m.bossKills.push(ids[0]); saveMeta(); }
@@ -469,7 +469,7 @@ export class Game {
         });
         box.append(row, h('div', { class: 'row' },
           h('button', { class: 'sf-btn', disabled: run.gold < cost, onclick: () => { if (payReroll(run)) { offer = symbolOffer(run, 3, kind === 'boss' ? 60 : kind === 'elite' ? 15 : 0); snd.reel(); render(); } } }, `↻ ${cost ? `${cost} ✦` : L('gratis', 'free')}`),
-          h('button', { class: 'sf-btn ghost', onclick: async () => { if (await this.removeSym(true)) { symTaken = true; render(); } } }, L('Stattdessen eins ausbauen', 'Remove one instead')),
+          h('button', { class: 'sf-btn ghost', onclick: async () => { if (await this.removeSym(true)) { symTaken = true; render(); } } }, L('✕ Ausbauen', '✕ Remove')),
           h('button', { class: 'sf-btn ghost', onclick: () => { symTaken = true; render(); } }, L('Überspringen', 'Skip'))));
       }
       if (goldTaken && symTaken && !mods.length) box.append(h('button', { class: 'sf-go', onclick: () => void this.afterReward(kind) },
@@ -582,8 +582,8 @@ export class Game {
     const res = applyOutcomes(run, list);
     this.save();
     if (res.fight) { await this.fight(res.fight === 'elite' ? 'elite' : 'fight'); return; }
-    if (res.remove) await this.removeSym(true);
-    if (res.upgrade) await this.upgradeSym(true);
+    for (let i = 0; i < (res.remove ?? 0); i++) await this.removeSym(true);
+    for (let i = 0; i < (res.upgrade ?? 0); i++) await this.upgradeSym(true);
     this.clear('event', this.sectorBg());
     const box = h('div', { class: 'sf-panel' });
     this.view.append(this.top(),
@@ -853,6 +853,7 @@ export class Game {
     const run = this.run!;
     bgm(null); sting(won ? 'win' : 'lose');
     const res = finishRun(run, won, by);
+    if (!won) story('death');
     const m0 = meta(); if (run.mods.bonusStaub) { m0.staub += run.mods.bonusStaub; m0.totalStaub += run.mods.bonusStaub; saveMeta(); }
     this.run = null;
     this.clear('result ' + (won ? 'won' : 'lost'), won ? ['#3a2c10', '#07060f'] : ['#1a1020', '#050308']);

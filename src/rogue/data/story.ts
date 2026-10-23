@@ -1,6 +1,7 @@
 // Die Geschichte von STERNENFALL. Kapitel werden über viele Läufe hinweg freigeschaltet (erster Besuch eines Sektors,
 // erster Bosssieg, erster Gesamtsieg …) und im Logbuch gesammelt. Figuren tauchen an Stationen und in Ereignissen auf.
 import { Tx } from '../types';
+import { CHAPTERS_B, EXTRA_LINES } from './story_b';
 
 const T = (de: string, en: string): Tx => [de, en];
 
@@ -107,3 +108,7 @@ export const CHAPTERS: Chapter[] = [
     { who: 'kassik', text: T('Mein Volk lebte auf einem Planeten, der um einen roten Stern kreiste. Eines Morgens ging er nicht mehr auf. Klick. Deshalb jage ich nicht für ihn.', 'My people lived on a world around a red star. One morning it did not rise. Click. That is why I do not hunt for him.') },
   ] },
 ];
+
+// Geschichte II: Zusatzzeilen an bestehende Kapitel hängen, neue Kapitel anfügen
+for (const c of CHAPTERS) c.lines.push(...(EXTRA_LINES[c.id] ?? []));
+CHAPTERS.push(...CHAPTERS_B);

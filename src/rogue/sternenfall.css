@@ -865,3 +865,19 @@ button.sf-crest { margin: 0 0 8px; min-height: 20px; color: var(--gold2); }
 .sf-lines .sf-line.jackpot polyline { filter: none; stroke-width: 5; }
 .sf-log { animation: none !important; opacity: 0; }
 .sf-foe.hurt .sf-foeart { animation: none; }
+
+/* ===================================================================================== iPhone/WebKit-Feinschliff (v4.10)
+   gefunden mit Playwright-WebKit in iPhone-Größe */
+/* Knöpfe: iOS gibt Knöpfen eigene Schrift/Farbe/Optik, wenn die Klasse sie nicht setzt – neutral zurücksetzen (Spezifität 0) */
+:where(.sf, .sf-story, body.sf-on .sheet, .sf-preview, .sf-overlay) :where(button) { -webkit-appearance: none; appearance: none; font-family: var(--serif, Georgia, serif); color: inherit; letter-spacing: inherit; }
+.sf, .sf-story, body.sf-on .sheet { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.sf button, .sf-story button, body.sf-on .sheet button { touch-action: manipulation; }
+/* Geschichte: großes Porträt passt sich der freien Höhe an (überdeckte sonst den Namen im Textkasten) */
+.sf-sstage { container-type: size; }
+.sf-bigp { width: auto; height: min(34vh, 262px); height: min(calc(100cqh - 14px), 262px); }
+.sf-sbox .sf-line { padding-top: 18px; }
+.sf-sbox .sf-line b { filter: none; color: #3e2410; font-size: 17px; }
+.sf-sbox .sf-line small { color: #5e4426; }
+/* Bosskampf: Reaktor etwas flacher, damit der Boss größer erscheint */
+.sf-fight.boss { --cell: min(25vw, 92px, max(60px, calc((100dvh - 560px - var(--safe-top, 0px) - var(--safe-bottom, 0px)) / 3))); }
+.sf-foe.boss .sf-foeart, .sf-foe.final .sf-foeart { width: clamp(64px, min(46vw, calc(100cqh - 92px)), 170px); }

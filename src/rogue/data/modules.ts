@@ -70,6 +70,17 @@ export const MODULES: ModuleDef[] = [
     onRunStart: r => { r.run.heatBonus += 2; r.run.maxHp += 10; r.run.hp += 10; r.addSymbol('schrott', 0); r.addSymbol('schrott', 2); } },
   { id: 'architektenmuenze', name: T('Münze des Architekten', 'Architect’s Coin'), icon: '✦', rarity: 'legendary', cursed: true, text: T('Zugbeginn: Münzwurf – Kopf +2 Drehs, Zahl +3 Hitze.', 'Turn start: coin flip – heads +2 spins, tails +3 heat.'),
     onTurnStart: c => { if (c.rnd() < 0.5) { c.addSpins(2); c.log(T('✦ Kopf! +2 Drehs', '✦ Heads! +2 spins')); } else { c.addHeat(3); c.log(T('✦ Zahl … +3 Hitze', '✦ Tails … +3 heat')); } } },
+  // ======================================================================================= v4.10
+  { id: 'minimalist', name: T('Linse des Einsiedlers', 'Hermit’s Lens'), icon: '◌', rarity: 'rare', text: T('Höchstens 13 Symbole im Reaktor: alle Schadenssymbole +3.', 'At most 13 symbols in your reactor: all damage symbols +3.'),
+    modDamage: (c, d, sym) => (sym && c.run.reels.flat().length <= 13 ? d + 3 : d) },
+  { id: 'ankerkette', name: T('Ankerkette', 'Anchor Chain'), icon: '⊥', rarity: 'common', text: T('Kampfbeginn: 8 Schild.', 'Combat start: 8 shield.'), onCombatStart: c => c.gainBlock(8) },
+  { id: 'sternkompass', name: T('Sternkompass', 'Star Compass'), icon: '✣', rarity: 'common', text: T('Sofort: 3 kostenlose Neuwürfe.', 'Now: 3 free rerolls.'), onRunStart: r => { r.run.mods.freeRerolls = (r.run.mods.freeRerolls ?? 0) + 3; } },
+  { id: 'gezeitenuhr', name: T('Gezeitenuhr', 'Tide Clock'), icon: '⧗', rarity: 'rare', text: T('Jede 3. Runde: +1 Dreh.', 'Every 3rd turn: +1 spin.'), onTurnStart: c => { if (c.turn % 3 === 0) c.addSpins(1); } },
+  { id: 'perlenkette', name: T('Perlenkette von Kesh', 'Pearls of Kesh'), icon: '○', rarity: 'rare', text: T('Nach jedem Sieg: 5 Hülle.', 'After every victory: 5 hull.'), onCombatEnd: (r, won) => { if (won) r.heal(5); } },
+  { id: 'kristallherz', name: T('Kristallherz', 'Crystal Heart'), icon: '◈', rarity: 'epic', text: T('Jede Synergie-Linie: 3 Schaden an allen.', 'Every synergy line: 3 damage to all.'), onLine: (c, k) => { if (k === 'synergy') c.dmg(3, { all: true }); } },
+  { id: 'sturmglas', name: T('Sturmglas', 'Storm Glass'), icon: '↯', rarity: 'epic', text: T('Überladung: 12 Schaden an allen Gegnern.', 'Overload: 12 damage to all enemies.'), onOverheat: c => { c.dmg(12, { all: true }); } },
+  { id: 'schuldschein', name: T('Ozzos Schuldschein', 'Ozzo’s IOU'), icon: '¤', rarity: 'rare', cursed: true, text: T('Sofort +120 Gold. FLUCH: du erleidest 10 % mehr Schaden.', 'Now +120 gold. CURSE: you take 10 % more damage.'),
+    onRunStart: r => { r.gainGold(120); r.run.mods.taken = (r.run.mods.taken ?? 0) + 0.1; } },
 ];
 
 export const MOD: Record<string, ModuleDef> = Object.fromEntries(MODULES.map(m => [m.id, m]));

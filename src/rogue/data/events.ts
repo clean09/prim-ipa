@@ -3,5 +3,6 @@ import { EventDef } from '../types';
 import { EVENTS_A } from './events_a';
 import { EVENTS_B } from './events_b';
 import { EVENTS_C } from './events_c';
+import { EVENTS_D } from './events_d';
 
-export const EVENTS: EventDef[] = [...EVENTS_A, ...EVENTS_B, ...EVENTS_C];
+export const EVENTS: EventDef[] = [...EVENTS_A, ...EVENTS_B, ...EVENTS_C, ...EVENTS_D];

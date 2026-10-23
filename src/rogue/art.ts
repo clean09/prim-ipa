@@ -523,6 +523,12 @@ export function frameImg(style: 'gold' | 'ink' = 'gold', variant: 'a' | 'b' = 'a
 // Inline-SVG mit Relief-Filtern wird bei jeder Bewegung neu berechnet (auf dem iPhone per CPU). Als <img> rastert
 // WebKit das Motiv einmal und verschiebt danach nur noch fertige Pixel. „Hoch“ behält die lebenden Inline-Gegner.
 const urlCache = new Map<string, string>();
+/** Safari/WebKit lehnt SVG-Bilder mit doppelten Attributen ab (z. B. stroke-width aus ST + eigenes) – der letzte Wert gilt. */
+const dedupeAttrs = (svg: string) => svg.replace(/<([a-zA-Z][\w:-]*)((?:\s+[\w:-]+="[^"]*")+)\s*(\/?)>/g, (_m, tag: string, attrs: string, close: string) => {
+  const seen = new Map<string, string>();
+  for (const [, k, v] of attrs.matchAll(/([\w:-]+)="([^"]*)"/g)) { seen.delete(k); seen.set(k, v); }
+  return `<${tag}${[...seen].map(([k, v]) => ` ${k}="${v}"`).join('')}${close ? '/' : ''}>`;
+});
 const stripAnim = (s: string) => s.replace(/<animate(Transform)?\b[^>]*\/>/g, '').replace(/<animate(Transform)?\b[^>]*>[\s\S]*?<\/animate(Transform)?>/g, '');
 // Zweite Stufe: das SVG-Bild wird einmal in ein echtes Pixelbild (PNG) umgerechnet. Safari zeichnet SVG-Bilder samt Filter
 // sonst bei jedem Neuzeichnen ihres Bereichs neu – ein PNG ist nur noch eine fertige Textur.
@@ -550,7 +556,7 @@ function cachedUrl(key: string, make: () => string, px = 200) {
   const png = pngCache.get(key);
   if (png) return png;
   let u = urlCache.get(key);
-  if (!u) { u = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(stripAnim(make())); urlCache.set(key, u); rasterQueue.push([key, u, px]); if (!rastering) pumpRaster(); }
+  if (!u) { u = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(dedupeAttrs(stripAnim(make()))); urlCache.set(key, u); rasterQueue.push([key, u, px]); if (!rastering) pumpRaster(); }
   return u;
 }
 /** Motive vorab rastern (Deck, Gegner eines Sektors), damit beim Drehen schon fertige Pixelbilder da sind. */
