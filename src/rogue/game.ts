@@ -469,6 +469,7 @@ export class Game {
         });
         box.append(row, h('div', { class: 'row' },
           h('button', { class: 'sf-btn', disabled: run.gold < cost, onclick: () => { if (payReroll(run)) { offer = symbolOffer(run, 3, kind === 'boss' ? 60 : kind === 'elite' ? 15 : 0); snd.reel(); render(); } } }, `↻ ${cost ? `${cost} ✦` : L('gratis', 'free')}`),
+          h('button', { class: 'sf-btn ghost', onclick: async () => { if (await this.removeSym(true)) { symTaken = true; render(); } } }, L('Stattdessen eins ausbauen', 'Remove one instead')),
           h('button', { class: 'sf-btn ghost', onclick: () => { symTaken = true; render(); } }, L('Überspringen', 'Skip'))));
       }
       if (goldTaken && symTaken && !mods.length) box.append(h('button', { class: 'sf-go', onclick: () => void this.afterReward(kind) },
@@ -488,7 +489,7 @@ export class Game {
         return;
       }
       enterAct(run, run.act + 1);
-      if (run.act === 2 && run.reels.flat().length <= 13) unlock('lean');
+      if (run.act === 2 && run.reels.flat().length <= 11) unlock('lean');
       this.save();
       await this.flushStory();
       void this.actIntro();
@@ -610,7 +611,7 @@ export class Game {
   }
   private async removeSym(free = false) {
     const run = this.run!;
-    const s = await pickSymbol(run, L('Symbol entfernen', 'Remove a symbol'), L('Das Symbol verlässt deinen Reaktor für immer (jede Walze behält mindestens 3).', 'The symbol leaves your reactor for good (each reel keeps at least 3).'), () => true);
+    const s = await pickSymbol(run, L('Symbol entfernen', 'Remove a symbol'), L('Das Symbol verlässt deinen Reaktor für immer (jede Walze behält mindestens 3).', 'The symbol leaves your reactor for good (each reel keeps at least 3).'), x => (run.reels.find(r => r.includes(x))?.length ?? 0) > 3);
     if (!s) return false;
     if (!removeSymbol(run, s.uid)) { toast(L('Diese Walze ist schon minimal.', 'This reel is already minimal.')); return false; }
     if (!free) { run.gold -= removeCost(run); run.removes++; }
@@ -625,7 +626,7 @@ export class Game {
     const disc = big ? 0.85 : 1, nW = big ? 9 : 6;
     let wares = symbolOffer(run, nW, big ? 25 : 10).map(id => ({ id, price: Math.round(symbolPrice(run, SYM[id].rarity, r) * disc), sold: false }));
     const mods = [...moduleOffer(run, big ? 3 : 2), ...moduleOffer(run, 1, 'cursed')].map(id => ({ id, price: Math.round(modulePrice(run, MOD[id].rarity, r) * (MOD[id].cursed ? 0.6 : 1) * disc), sold: false }));
-    let removed = false;
+    let removed = 0;
     const greet = pick(r, [L('Hrrm. Alles echt, alles fair. Fast alles.', 'Hrrm. All genuine, all fair. Almost all.'), L('Für dich, Kurierin, ein Sonderpreis. Ein sehr besonderer.', 'For you, courier, a special price. A very special one.'), L('Kauf zwei, bezahl drei. Hrrm? Nein, so war das nicht …', 'Buy two, pay for three. Hrrm? No, that’s not right …')]);
     const render = () => {
       this.refreshTop();
@@ -650,7 +651,7 @@ export class Game {
       }
       const rc = removeCost(run);
       box.append(h('div', { class: 'sf-sec' }, L('Dienste', 'Services')),
-        h('button', { class: 'sf-opt', disabled: removed || run.gold < rc, onclick: async () => { if (await this.removeSym()) { removed = true; render(); } } }, h('b', null, L('Symbol ausbauen', 'Remove a symbol')), h('small', null, `${rc} ✦`)),
+        h('button', { class: 'sf-opt', disabled: removed >= 2 || run.gold < rc, onclick: async () => { if (await this.removeSym()) { removed++; render(); } } }, h('b', null, L('Symbol ausbauen', 'Remove a symbol')), h('small', null, removed >= 2 ? L('heute nicht mehr', 'no more today') : `${rc} ✦ · ${L(`noch ${2 - removed}×`, `${2 - removed} left`)}`)),
         h('button', { class: 'sf-go', onclick: () => this.done() }, h('b', null, L('Weiterfliegen', 'Fly on'))));
     };
     render();
@@ -767,6 +768,7 @@ export class Game {
       h('div', { class: 'sf-evhead' }, h('div', { class: 'ic' }, '⚙'), h('h2', null, L('Brakks Station', 'Brakk’s Station')), h('div', { html: ornament(220) })),
       h('button', { class: 'sf-opt', onclick: () => { runCtx(run).heal(heal); snd.win(); this.done(); } }, h('b', null, `⛨ ${L('Hülle reparieren', 'Repair hull')}`), h('small', null, `+${heal} ${L('Hülle', 'hull')} (${run.hp} → ${Math.min(run.maxHp, run.hp + heal)})`)),
       h('button', { class: 'sf-opt', onclick: async () => { if (await this.upgradeSym(true)) this.done(); } }, h('b', null, `▲ ${L('Symbol aufwerten', 'Upgrade a symbol')}`), h('small', null, L('Eine Stufe höher (I → II → III), gratis', 'One level up (I → II → III), free'))),
+      h('button', { class: 'sf-opt', onclick: async () => { if (await this.removeSym(true)) { await this.removeSym(true); this.done(); } } }, h('b', null, `✕ ${L('Zwei Symbole ausbauen', 'Remove two symbols')}`), h('small', null, L('Deck verschlanken – gratis (das zweite darfst du auslassen)', 'Slim your deck – free (the second one is optional)'))),
       h('button', { class: 'sf-opt check', onclick: () => this.rollCheck(0.5 + run.luck, won => {
         if (won) { run.maxHp += 8; run.hp = run.maxHp; toast(L('Brakks Experiment glückt: +8 max. Hülle, voll repariert!', 'Brakk’s experiment works: +8 max hull, fully repaired!')); }
         else { runCtx(run).addSymbol('parasit'); toast(L('Ein Reaktorparasit nistet sich ein …', 'A reactor parasite moves in …')); }

@@ -7,19 +7,19 @@ const T = (de: string, en: string): [string, string] => [de, en];
 export const SHIPS: ShipDef[] = [
   { id: 'kreuzer', name: T('Lumen-Kreuzer', 'Lumen Cruiser'), hull: 'kreuzer', hue: 35, hp: 72, gold: 99, heatMax: 6, spins: 3, module: 'lumen',
     text: T('Ilyas Kurierschiff. Ausgewogen, verzeiht Fehler.', 'Ilya’s courier ship. Balanced and forgiving.'),
-    reels: [['laser', 'laser', 'schild', 'credit', 'stern'], ['laser', 'schild', 'reparatur', 'laser', 'mond'], ['torpedo', 'schild', 'laser', 'credit', 'stern']] },
+    reels: [['laser', 'schild', 'credit', 'stern'], ['laser', 'schild', 'reparatur', 'mond'], ['torpedo', 'schild', 'laser', 'stern']] },
   { id: 'astrolab', name: T('Messing-Astrolab', 'Brass Astrolabe'), hull: 'forscher', hue: 45, hp: 64, gold: 160, heatMax: 6, spins: 3, module: 'teleskop', unlock: 'u-astrolab',
     text: T('Forschungsschiff: Gold, Spähsatelliten, Technik-Synergien.', 'Research vessel: gold, scout satellites, tech synergies.'),
-    reels: [['credit', 'satellit', 'laser', 'kuehler', 'schild'], ['schuerfer', 'credit', 'schild', 'satellit', 'laser'], ['laser', 'kuehler', 'credit', 'schild', 'lichtfeder']] },
+    reels: [['credit', 'satellit', 'laser', 'schild'], ['schuerfer', 'schild', 'satellit', 'laser'], ['laser', 'kuehler', 'credit', 'lichtfeder']] },
   { id: 'nachtfalter', name: T('Nachtfalter', 'Night Moth'), hull: 'phantom', hue: 285, hp: 62, gold: 99, heatMax: 6, spins: 3, module: 'schleier', unlock: 'u-nachtfalter',
     text: T('Vaels Mottenschiff: Strahlung und Schwäche, leise und tödlich.', 'Vael’s moth ship: radiation and weakness, quiet and deadly.'),
-    reels: [['strahler', 'laser', 'schild', 'motte', 'strahler'], ['schild', 'strahler', 'laser', 'mond', 'nebelschleier'], ['laser', 'schild', 'strahler', 'lotus', 'laser']] },
+    reels: [['strahler', 'laser', 'schild', 'motte'], ['schild', 'strahler', 'mond', 'nebelschleier'], ['laser', 'schild', 'strahler', 'lotus']] },
   { id: 'amboss', name: T('Sonnenamboss', 'Sun Anvil'), hull: 'titan', hue: 15, hp: 86, gold: 80, heatMax: 8, spins: 3, module: 'schmiede', unlock: 'u-amboss',
     text: T('Brakks Schlachtschiff: riesige Hitze, schwere Geschütze.', 'Brakk’s battleship: huge heat capacity, heavy guns.'),
-    reels: [['torpedo', 'kuppel', 'laser', 'kuehler', 'torpedo'], ['plasma', 'schild', 'kuehler', 'laser', 'schild'], ['torpedo', 'laser', 'kuppel', 'kuehler', 'rakete']] },
+    reels: [['torpedo', 'kuppel', 'laser', 'kuehler'], ['plasma', 'schild', 'kuehler', 'laser'], ['torpedo', 'laser', 'kuppel', 'rakete']] },
   { id: 'spirale', name: T('Die Spirale', 'The Spiral'), hull: 'singular', hue: 265, hp: 66, gold: 99, heatMax: 6, spins: 3, module: 'singular', unlock: 'u-spirale',
     text: T('Experimentalschiff mit einem Wurmloch im Bug. Kosmos-Synergien, Chaos.', 'Experimental ship with a wormhole in its bow. Cosmos synergies, chaos.'),
-    reels: [['wurmloch', 'stern', 'libelle', 'mond', 'laser'], ['stern', 'pulsar', 'mond', 'schild', 'libelle'], ['libelle', 'stern', 'schild', 'mond', 'stern']] },
+    reels: [['wurmloch', 'stern', 'libelle', 'mond'], ['stern', 'pulsar', 'mond', 'schild'], ['libelle', 'stern', 'schild', 'mond']] },
 ];
 export const SHIP: Record<string, ShipDef> = Object.fromEntries(SHIPS.map(s => [s.id, s]));
 

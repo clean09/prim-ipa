@@ -105,7 +105,7 @@ export const ACHIEVEMENTS: AchDef[] = [
   A('rich', '✦', 'Ozzos Albtraum', 'Ozzo’s Nightmare', '400 Gold gleichzeitig besitzen', 'Hold 400 gold at once', 30),
   A('cursed3', '☠', 'Verfluchte Ladung', 'Cursed Cargo', '3 verfluchte Module in einem Lauf', '3 cursed modules in one run', 40),
   A('reels30', '▤', 'Volle Walzen', 'Full Reels', '30 Symbole auf den Walzen', '30 symbols on your reels', 25),
-  A('lean', '✂', 'Schlanker Reaktor', 'Lean Reactor', 'Akt 2 mit höchstens 13 Symbolen erreichen', 'Reach act 2 with at most 13 symbols', 40),
+  A('lean', '✂', 'Schlanker Reaktor', 'Lean Reactor', 'Akt 2 mit höchstens 11 Symbolen erreichen', 'Reach act 2 with at most 11 symbols', 40),
   A('ship-astrolab', '⌕', 'Messingträume', 'Brass Dreams', 'Mit dem Astrolab einen Boss besiegen', 'Defeat a boss with the Astrolabe', 30),
   A('ship-nachtfalter', '❦', 'Nachtflug', 'Night Flight', 'Mit dem Nachtfalter einen Boss besiegen', 'Defeat a boss with the Night Moth', 30),
   A('ship-amboss', '⚒', 'Schmiedefeuer', 'Forge Fire', 'Mit dem Sonnenamboss einen Boss besiegen', 'Defeat a boss with the Sun Anvil', 30),

@@ -87,6 +87,8 @@ Jedes Symbol gehört zu einer von 8 **Konstellationen**. Mit 3, 5 oder 7 Symbole
   - **Symbol:** eines von 3 wählen; die Seltenheit steigt durch eine versteckte Glücksgarantie.
   - **Neu würfeln:** mit steigenden Kosten.
 - Elite und Boss geben zusätzlich Module.
+- **Deck schlank halten:** Start mit 4 Symbolen je Walze, Platz für 10. Volle Walze → neues Symbol ersetzt ein altes.
+  Ausbauen: nach jedem Kampf statt eines neuen Symbols, gratis bei Brakk (bis zu zwei), günstig bei Ozzo (2× je Besuch), im Archiv der Motten.
 - Beim Tod gibt es Sternenstaub für die Forschung: neue Schiffe, Sektoren, Symbolpakete und Talente.
 - Die Geschichte wird im Logbuch Kapitel für Kapitel freigeschaltet.
 

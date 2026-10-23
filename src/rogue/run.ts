@@ -13,7 +13,9 @@ import { MapNode, NodeKind, Outcome, Rarity, Run, RunCtx, SymInst } from './type
 
 export const ROWS = 14;
 export const COLS = 4;
-export const REEL_MAX = 9;
+export const REEL_MAX = 10;
+/** So viele Symbole bleiben mindestens auf jeder Walze (das Fenster zeigt 3). */
+export const REEL_MIN = 3;
 
 export function newRun(ship: string, seed: string, asc = 0, o: { daily?: string; weekly?: string; mutators?: string[]; deck?: string } = {}): Run {
   const sh = SHIP[ship] ?? SHIP.kreuzer;
@@ -127,7 +129,7 @@ export function addModule(run: Run, id: string) {
   d.onRunStart?.(runCtx(run));
   if (run.modules.filter(x => MOD[x]?.cursed).length >= 3) unlock('cursed3');
 }
-export function removeSymbol(run: Run, uid: number) { for (const r of run.reels) { const i = r.findIndex(s => s.uid === uid); if (i >= 0 && r.length > 2) { r.splice(i, 1); return true; } } return false; }
+export function removeSymbol(run: Run, uid: number) { for (const r of run.reels) { const i = r.findIndex(s => s.uid === uid); if (i >= 0 && r.length > REEL_MIN) { r.splice(i, 1); return true; } } return false; }
 export function findSymbol(run: Run, uid: number): SymInst | undefined { return allSymbols(run).find(s => s.uid === uid); }
 
 // ------------------------------------------------------------------------------------------- Angebote
@@ -183,7 +185,7 @@ export function payReroll(run: Run) { const c = rerollCost(run); if (run.gold < 
 const priceMult = (run: Run) => (run.mods.goldMult ? 2 : 1) * (1 - Math.min(0.15, 0.05 * Math.floor((loadData<{ runs?: number }>('sternenfall', {}).runs ?? 0) / 10)));
 export const symbolPrice = (run: Run, rar: Rarity, r: () => number) => Math.round(({ common: 45, rare: 75, epic: 125, legendary: 190 }[rar]) * (0.9 + r() * 0.25) * priceMult(run));
 export const modulePrice = (run: Run, rar: string, r: () => number) => Math.round((({ common: 140, rare: 200, epic: 280, legendary: 380 } as Record<string, number>)[rar] ?? 220) * (0.9 + r() * 0.2) * priceMult(run));
-export const removeCost = (run: Run) => Math.round((70 + 25 * run.removes) * priceMult(run));
+export const removeCost = (run: Run) => Math.round((40 + 15 * run.removes) * priceMult(run));
 export const upgradeCost = (run: Run, lv: number) => Math.round((40 + lv * 30) * priceMult(run));
 
 // ------------------------------------------------------------------------------------------- Ergebnisse (Ereignisse, Wracks)

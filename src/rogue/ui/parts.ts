@@ -8,7 +8,7 @@ import { CAST, CHAPTERS } from '../data/story';
 import { SHIP } from '../data/ships';
 import { ARCH_OF, CONST, CONSTELLATIONS, THRESH, constCounts, nextThresh } from '../data/constellations';
 import { ornament, portraitSvg, shipHtml, symbolHtml } from '../art';
-import { REEL_MAX, rarityColor } from '../run';
+import { REEL_MAX, rarityColor, removeSymbol } from '../run';
 import { Run, SymInst } from '../types';
 
 export const tx = (t: [string, string]) => L(t[0], t[1]);
@@ -104,8 +104,16 @@ export function chooseReel(run: Run, id: string): Promise<number | null> {
     let done = false;
     const close = sheet(L('Auf welche Walze?', 'Which reel?'),
       h('div', { class: 'sf-choose' }, cardEl(id, 1),
-        h('div', { class: 'sf-choosebtns' }, [0, 1, 2].map(r => h('button', { class: 'sf-btn', disabled: run.reels[r].length >= REEL_MAX, onclick: () => { done = true; close(); res(r); } },
-          `${L('Walze', 'Reel')} ${roman(r + 1)}`, h('small', null, `${run.reels[r].length}/${REEL_MAX}`))))),
+        h('div', { class: 'sf-choosebtns' }, [0, 1, 2].map(r => {
+          const full = run.reels[r].length >= REEL_MAX;
+          return h('button', { class: 'sf-btn' + (full ? ' swap' : ''), onclick: async () => {
+            done = true; close();
+            if (!full) { res(r); return; }
+            // Walze voll: ein vorhandenes Symbol dieser Walze gegen das neue tauschen
+            const old = await pickSymbol(run, L('Walze voll – welches Symbol fliegt raus?', 'Reel full – which symbol goes?'), L('Das gewählte Symbol wird durch das neue ersetzt.', 'The chosen symbol is replaced by the new one.'), s => run.reels[r].includes(s));
+            res(old && removeSymbol(run, old.uid) ? r : null);
+          } }, `${L('Walze', 'Reel')} ${roman(r + 1)}`, h('small', null, full ? L('voll · tauschen', 'full · swap') : `${run.reels[r].length}/${REEL_MAX}`));
+        }))),
       h('p', { class: 'muted small' }, L('Tipp: Gleiche Familien in derselben Reihe aller drei Walzen ergeben Synergien.', 'Tip: matching families in the same row of all three reels give synergies.')),
       reelsView(run));
     document.querySelector('.sheet-bg')?.addEventListener('click', () => { if (!done) res(null); });

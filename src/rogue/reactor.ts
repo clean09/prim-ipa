@@ -34,11 +34,11 @@ export const LINES: [number, number][][] = [
 
 /** Zentrale Balance (per tools/sternenfall-sim.ts abgestimmt): Lebenspunkte je Gegnerstufe, Gegnerschaden. */
 export const BAL = {
-  hp: { normal: 4.65, elite: 3.35, boss: 2.1, minion: 2.4, final: 1.1 } as Record<string, number>,
-  dmg: { normal: 2.4, elite: 2.1, boss: 2, minion: 2.2, final: 1.75 } as Record<string, number>,
+  hp: { normal: 6.2, elite: 4.5, boss: 2.85, minion: 3.2, final: 1.5 } as Record<string, number>,
+  dmg: { normal: 2.45, elite: 2.15, boss: 2.1, minion: 2.25, final: 1.85 } as Record<string, number>,
   foeBlock: 2,
   /** Sanfte Kurve je Sektorstufe 1–4 (Lebenspunkte, Schaden). */
-  tierHp: [0.85, 1, 1.12, 1.18, 1.3, 1.22], tierDmg: [1, 1, 1.05, 1, 0.95, 1],
+  tierHp: [0.72, 0.88, 1.08, 1.15, 1.3, 1.28], tierDmg: [0.9, 0.95, 1, 1, 0.95, 1],
   foeDmg: (id?: string) => (id ? BAL.dmg[ENEMY[id]?.tier] ?? 2 : 2),
 };
 
@@ -78,9 +78,9 @@ export class Reactor implements Ctx {
   // ----------------------------------------------------------------------------------------- RunCtx
   gainGold(n: number) {
     if (n > 0 && this.firing && this.cl.gilde >= 1) {
-      n = Math.round(n * 1.4);
+      n = Math.round(n * 1.5);
       const t = this.target && !this.target.dead ? this.target : this.alive()[0];
-      if (t && this.cl.gilde >= 2) this.pure(t, n);   // Gilde II: Gold wird zu Geschossen
+      if (t && this.cl.gilde >= 2) this.pure(t, 2 * n);   // Gilde II: Gold wird zu Geschossen
     }
     const b = this.run.gold; if (n > 0) for (const f of this.alive()) if (this.has(f, 'goldgierig')) this.pure(f, n); this.rc.gainGold(n); this.ui.emit({ t: 'gold', n: this.run.gold - b }); }
   heal(n: number) { const b = this.run.hp; this.rc.heal(Math.round(n)); if (this.run.hp > b) this.ui.emit({ t: 'heal', n: this.run.hp - b }); }
@@ -114,7 +114,7 @@ export class Reactor implements Ctx {
     this.block = Math.floor(this.block * keep);
     this.spinsLeft = 3 + this.run.spinBonus + (this.turn === 1 && this.run.mods.firstSpin ? 1 : 0) + (this.cl.uhrwerk >= 2 ? 1 : 0);
     this.powers._chorJack = 0;
-    this.heat = Math.max(0, this.heat - 3 - (this.powers.cool ?? 0) - (this.cl.uhrwerk >= 1 ? 1 : 0));
+    this.heat = Math.max(0, this.heat - 3 - (this.powers.cool ?? 0) - (this.cl.uhrwerk >= 1 ? 2 : 0));
     if (this.cl.leere >= 2) { const t = this.target && !this.target.dead ? this.target : this.alive()[0]; if (t && !this.has(t, 'unbeugsam')) t.vuln += 1; }
     this.held = [false, false, false]; this.nudge = [false, false, false];
     if (this.rad > 0) { this.hurtSelf(this.rad, true); this.rad--; }
@@ -145,7 +145,7 @@ export class Reactor implements Ctx {
     this.fill();
     this.addHeat(heat);
     if (this.spin >= 3) for (const f of this.alive()) if (this.has(f, 'taktgeber')) this.pure(f, 6);
-    if (this.spin >= 3 && this.cl.uhrwerk >= 2) for (const f of this.alive()) this.pure(f, 3 + this.spin);   // Uhrwerk II: der Takt schlägt zu
+    if (this.spin >= 3 && this.cl.uhrwerk >= 2) for (const f of this.alive()) this.pure(f, 6 + 3 * this.spin);   // Uhrwerk II: der Takt schlägt zu
     return [...this.offs];
   }
 
@@ -205,7 +205,7 @@ export class Reactor implements Ctx {
     const dmg = 4 + this.heat - this.heatMax + (this.powers.overheatDmg ?? 0);
     this.mods(m => m.onOverheat?.(this));
     if (this.cl.glut >= 3) {
-      const n = 12 + 2 * this.heat;
+      const n = 18 + 3 * this.heat;
       for (const f of this.alive()) this.hit(f, n);
       this.log(L(`Glutkern: Die Überladung trifft alle Gegner (${n}) – weiter geht’s!`, `Ember Core: the overload hits all enemies (${n}) – keep going!`));
       this.heat = Math.max(0, this.heatMax - 3);
@@ -243,7 +243,7 @@ export class Reactor implements Ctx {
     for (const f of [...this.foes]) {
       if (f.dead || this.over) continue;
       if (this.has(f, 'regen') && f.hp < f.max) { const g = Math.max(1, Math.round(f.max * 0.06)); f.hp = Math.min(f.max, f.hp + g); this.ui.emit({ t: 'foeNote', uid: f.uid, text: `+${g}`, good: false }); }
-      if (f.rad > 0) { const rd = f.rad * (this.cl.isotop >= 3 ? 2 : 1) * (this.has(f, 'strahlempf') ? 2 : 1); f.hp -= rd; this.ui.emit({ t: 'rad', uid: f.uid, n: rd }); if (this.cl.isotop < 2) f.rad--; if (f.hp <= 0) { this.checkDeaths(); await this.ui.pause(220); continue; } }
+      if (f.rad > 0) { const rd = Math.round(f.rad * (this.cl.isotop >= 3 ? 1.6 : 1)) * (this.has(f, 'strahlempf') ? 2 : 1); f.hp -= rd; this.ui.emit({ t: 'rad', uid: f.uid, n: rd }); if (this.cl.isotop < 2) f.rad--; if (f.hp <= 0) { this.checkDeaths(); await this.ui.pause(220); continue; } }
       f.block = 0; f.turn++;                                   // alter Schild verfällt – Boni aus onTurnStart bleiben
       ENEMY[f.id].onTurnStart?.(f, this);
       if (f.stun > 0) { f.stun--; this.log(L(`${ENEMY[f.id].name[0]} ist in Stase.`, `${ENEMY[f.id].name[1]} is in stasis.`)); await this.ui.pause(300); continue; }
@@ -308,8 +308,8 @@ export class Reactor implements Ctx {
   dmg(n: number, o: { all?: boolean; times?: number; pierce?: boolean; foe?: Foe; random?: boolean } = {}) {
     const f = this.firing;
     const arch = f ? ARCH_OF[f.sym.id] : undefined;
-    if (f && f.sym.tag === 'waffe' && this.cl.glut >= 2 && !this.anyTrait('frostaura')) n += this.heat;
-    if (f && this.cl.gilde >= 2) n += Math.min(8, Math.floor(this.run.gold / 25));
+    if (f && f.sym.tag === 'waffe' && this.cl.glut >= 2 && !this.anyTrait('frostaura')) n += Math.round(this.heat * 1.5);
+    if (f && this.cl.gilde >= 2) n += Math.min(10, Math.floor(this.run.gold / 20));
     const swarm = arch === 'schwarm' && ((o.times ?? 1) > 1 || o.random || o.all);
     if (swarm && this.cl.schwarm >= 1) n += 1;
     if (swarm && this.cl.schwarm >= 2 && (o.times ?? 1) > 1) o = { ...o, times: (o.times ?? 1) + 1 };
@@ -334,7 +334,7 @@ export class Reactor implements Ctx {
     let d = n;
     const mine = !!this.firing || this.ramming;
     if (mine && this.hitFlags.multi && this.has(f, 'ausweichend') && this.rnd() < 0.35) { this.ui.emit({ t: 'foeNote', uid: f.uid, text: L('verfehlt', 'miss'), good: false }); return 0; }
-    if (this.firing && (f.weak > 0 || f.vuln > 0) && this.cl.leere >= 1) d += 4;
+    if (this.firing && (f.weak > 0 || f.vuln > 0) && this.cl.leere >= 1) d += 6;
     if (f.vuln > 0) d *= this.has(f, 'leitend') ? 2 : 1.5;
     if (mine && this.hitFlags.all && this.has(f, 'aufgeblaeht')) d *= 2;
     if (mine && pierce && this.has(f, 'instabil')) d *= 2;
@@ -387,7 +387,7 @@ export class Reactor implements Ctx {
     this.ui.emit({ t: 'block', n: b });
   }
   irradiate(n: number, all = false) {
-    const add = Math.floor(n * (this.firing?.m ?? 1)) + (this.powers.radPlus ?? 0) + (this.cl.isotop >= 1 ? 2 : 0);
+    const add = Math.floor(n * (this.firing?.m ?? 1)) + (this.powers.radPlus ?? 0) + (this.cl.isotop >= 1 ? 1 : 0);
     const ts = all ? this.alive() : [this.target && !this.target.dead ? this.target : this.alive()[0]].filter(Boolean) as Foe[];
     for (const f of ts) { if (this.has(f, 'strahlfest')) { this.ui.emit({ t: 'foeNote', uid: f.uid, text: L('immun', 'immune'), good: false }); continue; } f.rad += add; this.ui.emit({ t: 'rad', uid: f.uid, n: -add }); }
   }
