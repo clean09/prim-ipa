@@ -223,7 +223,7 @@ export function runFight(host: HTMLElement, run: Run, ids: string[], kind: 'figh
         const pk = c.peek(r), pd = SYM[pk.id];
         const mode = c.held[r] ? 'on' : c.nudge[r] ? 'nudge' : '';
         const b = h('button', { class: 'sf-hold ' + mode, disabled: busy || c.spin === 0 || !c.canSpin() },
-          h('span', null, c.held[r] ? L('🔒 Halten', '🔒 Hold') : c.nudge[r] ? L('▲ Schubsen', '▲ Nudge') : L('Frei', 'Free')),
+          h('span', null, c.held[r] ? L('▣ Halten', '▣ Hold') : c.nudge[r] ? L('▲ Schubsen', '▲ Nudge') : L('Frei', 'Free')),
           c.spin > 0 ? h('i', { class: 'sf-peek', title: tx(pd.name), html: symbolHtml(pd.art, pd.c1, pd.c2) }) : '');
         b.addEventListener('click', () => { if (c.toggleHold(r)) { snd.hold(); renderReelsStatic(); renderStatus(); } });
         holdRow.append(b);

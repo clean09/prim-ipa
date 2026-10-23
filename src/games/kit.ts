@@ -71,9 +71,9 @@ export function endScreen(host: HTMLElement, o: EndOpts): HTMLElement {
     h('div', { class: 'g-stars' }, starEls),
     big,
     o.scoreLabel ? h('div', { class: 'g-sub' }, o.scoreLabel) : null,
-    o.record ? h('div', { class: 'g-record' }, L('🏆 Neuer Rekord!', '🏆 New record!')) : null,
+    o.record ? h('div', { class: 'g-record' }, L('♛ Neuer Rekord!', '♛ New record!')) : null,
     h('div', { class: 'g-xp' }, xpLabel, h('div', { class: 'g-xpbar' }, xpFill), h('div', { class: 'g-xpgain' }, `+${r.xp} XP`)),
-    r.streak > 1 ? h('div', { class: 'g-sub' }, `🔥 ${L(`${r.streak} Tage in Folge`, `${r.streak}-day streak`)}`) : null,
+    r.streak > 1 ? h('div', { class: 'g-sub' }, `♨ ${L(`${r.streak} Tage in Folge`, `${r.streak}-day streak`)}`) : null,
     ...(o.lines ?? []).filter(Boolean) as Node[],
     h('div', { class: 'g-row' }, chunky(L('Menü', 'Menu'), o.onMenu, 'plain'), chunky(L('Nochmal', 'Again'), o.onAgain, 'go')));
   const wrap = h('div', { class: 'g-endwrap' }, card);

@@ -13,8 +13,8 @@ export const TRAITS: TraitDef[] = [
   { id: 'ausweichend', icon: '≈', good: false, counters: 'schwarm', name: T('Ausweichend', 'Evasive'), text: T('Zufalls- und Mehrfachtreffer verfehlen ihn zu 35 %.', 'Random and multi-hits miss it 35 % of the time.') },
   { id: 'strahlfest', icon: '⊘', good: false, counters: 'isotop', name: T('Strahlungsfest', 'Rad-Proof'), text: T('Strahlung wirkt nicht.', 'Radiation has no effect.') },
   { id: 'regen', icon: '✚', good: false, counters: 'bollwerk', name: T('Regeneration', 'Regeneration'), text: T('Heilt jeden Zug 6 % seiner Lebenspunkte. Langsame Decks verlieren.', 'Heals 6 % of its HP every turn. Slow decks lose.') },
-  { id: 'schildbrecher', icon: '⚡', good: false, counters: 'bollwerk', name: T('Schildbrecher', 'Shield Breaker'), text: T('Deine Schilde halten gegen ihn nur halb.', 'Your shields only work half against it.') },
-  { id: 'langfinger', icon: '🪝', good: false, counters: 'gilde', name: T('Langfinger', 'Pickpocket'), text: T('Jeder Treffer gegen dich stiehlt 4 Gold.', 'Every hit on you steals 4 gold.') },
+  { id: 'schildbrecher', icon: '↯', good: false, counters: 'bollwerk', name: T('Schildbrecher', 'Shield Breaker'), text: T('Deine Schilde halten gegen ihn nur halb.', 'Your shields only work half against it.') },
+  { id: 'langfinger', icon: '∫', good: false, counters: 'gilde', name: T('Langfinger', 'Pickpocket'), text: T('Jeder Treffer gegen dich stiehlt 4 Gold.', 'Every hit on you steals 4 gold.') },
   { id: 'unbeugsam', icon: '◆', good: false, counters: 'leere', name: T('Unbeugsam', 'Unyielding'), text: T('Immun gegen Schwäche, Leck und Stase.', 'Immune to Weak, Breach and stasis.') },
   { id: 'frostaura', icon: '❄', good: false, counters: 'glut', name: T('Frostaura', 'Frost Aura'), text: T('Deine max. Hitze −1, und Hitze-Boni der Waffen wirken nicht.', 'Your max heat −1, and weapon heat bonuses do nothing.') },
   // ---- Schwächen (grün) – belohnen eine Konstellation

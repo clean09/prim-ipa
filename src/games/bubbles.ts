@@ -27,7 +27,7 @@ interface Mistake { n: number; label?: string; kind: 'wrong' | 'missed' }
 
 const KIND: Record<BubbleMode, 'game' | 'blitz' | 'daily' | 'profi'> = { classic: 'game', blitz: 'blitz', daily: 'daily', profi: 'profi' };
 const HUES = [205, 265, 320, 15, 42, 165, 190, 290];
-const POWER_ICON: Record<Power, string> = { slow: '🐢', bomb: '💥', life: '❤️', shield: '🛡️' };
+const POWER_ICON: Record<Power, string> = { slow: '◔', bomb: '✸', life: '♥', shield: '⛨' };
 
 export function runBubbles(stage: HTMLElement, mode: BubbleMode, exit: () => void, again: (m: BubbleMode) => void): () => void {
   const timed = mode === 'blitz' || mode === 'daily';
@@ -134,7 +134,7 @@ export function runBubbles(stage: HTMLElement, mode: BubbleMode, exit: () => voi
   const showCombo = () => {
     if (combo < 3) { comboEl.classList.remove('on'); return; }
     const mult = Math.min(5, 1 + Math.floor(combo / 5));
-    comboEl.textContent = combo >= 15 ? `🔥 ${combo} ×${mult}` : `COMBO ${combo} ×${mult}`;
+    comboEl.textContent = combo >= 15 ? `♨ ${combo} ×${mult}` : `COMBO ${combo} ×${mult}`;
     comboEl.style.setProperty('--cc', ['#ffb84a', '#ff7a3d', '#ff4d7a', '#b46bff', '#4ad6ff'][mult - 1]);
     comboEl.classList.add('on');
     comboEl.classList.remove('bump'); void comboEl.offsetWidth; comboEl.classList.add('bump');
@@ -333,9 +333,9 @@ export function runBubbles(stage: HTMLElement, mode: BubbleMode, exit: () => voi
   };
 
   const updateHud = () => {
-    if (timed) leftChip.textContent = `⏱ ${Math.ceil(timeLeft)}`;
-    else if (mode === 'profi') leftChip.textContent = `${'⚪'.repeat(Math.max(0, lives))}${'❌'.repeat(3 - lives)}`;
-    else leftChip.textContent = `${'❤️'.repeat(Math.max(0, lives))}${'🖤'.repeat(Math.max(0, 3 - lives))}${shield ? ' 🛡️' : ''}`;
+    if (timed) leftChip.textContent = `◷ ${Math.ceil(timeLeft)}`;
+    else if (mode === 'profi') leftChip.textContent = `${'○'.repeat(Math.max(0, lives))}${'✕'.repeat(3 - lives)}`;
+    else leftChip.textContent = `${'♥'.repeat(Math.max(0, lives))}${'♡'.repeat(Math.max(0, 3 - lives))}${shield ? ' ⛨' : ''}`;
     if (mode === 'profi') scoreChip.textContent = L(`Stufe ${found} · ${profiDigits()} St.`, `Stage ${found} · ${profiDigits()} dig.`);
     else { shownScore += (score - shownScore) * 0.25; if (Math.abs(score - shownScore) < 1) shownScore = score; scoreChip.textContent = N(Math.round(shownScore)); }
   };
@@ -414,8 +414,8 @@ export function runBubbles(stage: HTMLElement, mode: BubbleMode, exit: () => voi
     if (lbConfigured() && settings().lbConsent === 'yes' && score >= (mode === 'profi' ? 1 : 10)) {
       const kind = KIND[mode];
       setTimeout(() => fetchModel(kind, gameGroup(kind), score).then(r => {
-        world.textContent = !r.stats || r.stats.n < 2 || r.below == null ? L('🌍 Du bist unter den ersten Spielern weltweit!', '🌍 You are among the first players worldwide!')
-          : L(`🌍 Besser als ${Math.round(r.below * 100)} % von ${N(r.stats.n)} Spielern${mode === 'daily' ? ' heute' : ''}`, `🌍 Better than ${Math.round(r.below * 100)} % of ${N(r.stats.n)} players${mode === 'daily' ? ' today' : ''}`);
+        world.textContent = !r.stats || r.stats.n < 2 || r.below == null ? L('⊕ Du bist unter den ersten Spielern weltweit!', '⊕ You are among the first players worldwide!')
+          : L(`⊕ Besser als ${Math.round(r.below * 100)} % von ${N(r.stats.n)} Spielern${mode === 'daily' ? ' heute' : ''}`, `⊕ Better than ${Math.round(r.below * 100)} % of ${N(r.stats.n)} players${mode === 'daily' ? ' today' : ''}`);
       }).catch(() => {}), 1600);
     }
   }

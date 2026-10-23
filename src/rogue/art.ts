@@ -271,9 +271,10 @@ export function enemySvg(look: { kind: string; seed: number; hue: number; boss?:
   }
   const still = mode !== 'live', fx = gid('efx'), grain = look.kind === 'kristall' ? 0 : look.kind === 'mech' ? 0.7 : 1.15, low = !still && sfs().gfx === 'low';
   // Lider: schließen sich kurz im eigenen Takt des Gegners (alle Augen gemeinsam)
-  const lids = (alive || mode === 'lids') && look.kind !== 'mech' ? eyes.map(([x, y, k]) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(k * 1.08)}" ry="0" fill="${a}" stroke="${GOLD}" stroke-width=".5"><animate attributeName="ry" values="0;0;${f1(k * 0.78)};0" keyTimes="0;.9;.95;1" dur="${blink}s" repeatCount="indefinite"/></ellipse>`).join('') : '';
+  // Lider: im Leicht-Modus geschlossen gezeichnet und per CSS-Deckkraft eingeblendet (Compositor statt SMIL-Neuzeichnen)
+  if (mode === 'lids') return look.kind === 'mech' || !eyes.length ? '' : `<div class="foe-blink" style="--bk:${blink}s;--bd2:${f1(R() * 3)}s">${svg('0 0 100 100', eyes.map(([x, y, k]) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(k * 1.08)}" ry="${f1(k * 0.8)}" fill="${a}" stroke="${GOLD}" stroke-width=".5"/>`).join(''), 'foe-lids')}</div>`;
+  const lids = alive && look.kind !== 'mech' ? eyes.map(([x, y, k]) => `<ellipse cx="${f1(x)}" cy="${f1(y)}" rx="${f1(k * 1.08)}" ry="0" fill="${a}" stroke="${GOLD}" stroke-width=".5"><animate attributeName="ry" values="0;0;${f1(k * 0.78)};0" keyTimes="0;.9;.95;1" dur="${blink}s" repeatCount="indefinite"/></ellipse>`).join('') : '';
   const breathe = alive ? `<animateTransform attributeName="transform" type="matrix" values="1 0 0 1 0 0;1.012 0 0 1.025 -.6 -1.3;1 0 0 1 0 0" dur="${f1(2.6 + R())}s" repeatCount="indefinite"/>` : '';
-  if (mode === 'lids') return lids ? svg('0 0 100 100', lids, 'foe-lids') : '';
   return svg('0 0 100 100', `${low ? '' : `<defs>${reliefFilter(fx, still || sfs().gfx === 'high' ? grain : 0, look.seed)}</defs>`}${halo(50, 52, 44, c, 30)}${guilloche(50, 52, 40, b, 8)}<g>${breathe}${low ? body : `<g filter="url(#${fx})">${body}</g>`}${lids}</g>${low || still ? '' : motes(look.seed, hsl(h + 180, 70, 75))}${inkShade(50, 52, 46)}`, 'foe-art');
 }
 
@@ -523,10 +524,40 @@ export function frameImg(style: 'gold' | 'ink' = 'gold', variant: 'a' | 'b' = 'a
 // WebKit das Motiv einmal und verschiebt danach nur noch fertige Pixel. „Hoch“ behält die lebenden Inline-Gegner.
 const urlCache = new Map<string, string>();
 const stripAnim = (s: string) => s.replace(/<animate(Transform)?\b[^>]*\/>/g, '').replace(/<animate(Transform)?\b[^>]*>[\s\S]*?<\/animate(Transform)?>/g, '');
-function cachedUrl(key: string, make: () => string) {
+// Zweite Stufe: das SVG-Bild wird einmal in ein echtes Pixelbild (PNG) umgerechnet. Safari zeichnet SVG-Bilder samt Filter
+// sonst bei jedem Neuzeichnen ihres Bereichs neu – ein PNG ist nur noch eine fertige Textur.
+const pngCache = new Map<string, string>();
+const rasterQueue: [string, string, number][] = [];
+let rastering = false;
+function pumpRaster() {
+  const job = rasterQueue.shift();
+  if (!job) { rastering = false; return; }
+  rastering = true;
+  const [key, url, px] = job;
+  const im = new Image();
+  const next = () => setTimeout(pumpRaster, 0);
+  im.onload = () => {
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = px;
+      c.getContext('2d')!.drawImage(im, 0, 0, px, px);
+      c.toBlob(b => { if (b) pngCache.set(key, URL.createObjectURL(b)); next(); }, 'image/png');
+    } catch { next(); }
+  };
+  im.onerror = next;
+  im.src = url;
+}
+function cachedUrl(key: string, make: () => string, px = 200) {
+  const png = pngCache.get(key);
+  if (png) return png;
   let u = urlCache.get(key);
-  if (!u) { u = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(stripAnim(make())); urlCache.set(key, u); }
+  if (!u) { u = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(stripAnim(make())); urlCache.set(key, u); rasterQueue.push([key, u, px]); if (!rastering) pumpRaster(); }
   return u;
+}
+/** Motive vorab rastern (Deck, Gegner eines Sektors), damit beim Drehen schon fertige Pixelbilder da sind. */
+export function prewarmArt(syms: { art: string; c1: string; c2: string }[], foes: { kind: string; seed: number; hue: number; boss?: string }[] = []) {
+  if (sfs().gfx === 'low') return;
+  for (const d of syms) symbolHtml(d.art, d.c1, d.c2);
+  if (sfs().gfx !== 'high') for (const l of foes) enemyHtml(l);
 }
 const img = (src: string, cls: string) => `<img class="${cls}" src="${src}" alt="" draggable="false" decoding="async">`;
 /** Symbolmotiv als zwischengespeichertes Bild (Walzen, Karten, Vorschau). */
@@ -538,11 +569,11 @@ export function symbolHtml(art: string, c1: string, c2: string) {
 export function enemyHtml(look: { kind: string; seed: number; hue: number; boss?: string }) {
   if (sfs().gfx === 'high') return `<div class="foe-live">${enemySvg(look)}</div>`;
   const k = look.boss ? 'boss' : look.kind;
-  const src = cachedUrl(`e|${look.kind}|${look.seed}|${look.hue}|${look.boss ?? ''}`, () => enemySvg(look, 'still'));
+  const src = cachedUrl(`e|${look.kind}|${look.seed}|${look.hue}|${look.boss ?? ''}`, () => enemySvg(look, 'still'), 320);
   return `<div class="foe-still k-${k}" style="--bd:${(2.6 + (look.seed % 7) * 0.23).toFixed(2)}s">${img(src, 'foe-img')}${sfs().gfx === 'mid' ? enemySvg(look, 'lids') : ''}</div>`;
 }
 /** Schiff: „hoch“ = lebendes SVG (flackernde Flamme), sonst gerastert mit CSS-Flackern. */
 export function shipHtml(hull: string, hue: number) {
   if (sfs().gfx === 'high') return shipSvg(hull, hue);
-  return `<div class="ship-still">${img(cachedUrl(`h|${hull}|${hue}`, () => shipSvg(hull, hue, true)), 'ship-img')}</div>`;
+  return `<div class="ship-still">${img(cachedUrl(`h|${hull}|${hue}`, () => shipSvg(hull, hue, true), 128), 'ship-img')}</div>`;
 }

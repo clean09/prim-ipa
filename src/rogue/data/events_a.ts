@@ -5,7 +5,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'schmuggler-kantine-0',
     act: 0,
-    icon: '🍺',
+    icon: '♢',
     title: ['Schmugglerkantine', 'Smuggler Cantina'],
     text: ['Der Geruch von synthetischem Alkohol und verbranntem Öl liegt schwer in der Luft. Ein Gruppe von Kreaturen lacht laut über einen schlechten Witz.', 'The smell of synthetic alcohol and burnt oil hangs heavy in the air. A group of creatures laughs loudly at a bad joke.'],
     options: [
@@ -26,7 +26,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'schneckenhaendler-0',
     act: 0,
-    icon: '🐌',
+    icon: '@',
     title: ['Schneckenhändler-Auktion', 'Slug Merchant Auction'],
     text: ['Ein flinker Händler präsentiert glitzernde Schnecken aus den Tiefen der Nebel. Er scheint dich mit seinen vielen Augen zu fixieren.', 'A nimble merchant presents glittering slugs from the depths of the nebulae. He seems to fixate on you with his many eyes.'],
     options: [
@@ -48,7 +48,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'generationenschiff-0',
     act: 0,
-    icon: '🚢',
+    icon: '⌂',
     title: ['Treibendes Generationenschiff', 'Drifting Generation Ship'],
     text: ['Ein riesiges, verlassenes Schiff treibt träge durch den Sektor. Die Innenräume sind von dichten Ranken überzogen.', 'A massive, abandoned ship drifts sluggishly through the sector. The interior rooms are overgrown with dense vines.'],
     options: [
@@ -69,7 +69,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'mottenschrein-0',
     act: 0,
-    icon: '🙏',
+    icon: '✧',
     title: ['Mottenschrein', 'Moth Shrine'],
     text: ['Ein kleiner Altar ist mit flüssigem Licht geschmückt. Eine Vael-ähnliche Gestalt flüstert Gebete in den Äther.', 'A small altar is decorated with liquid light. A Vael-like figure whispers prayers into the ether.'],
     options: [
@@ -91,7 +91,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'kopfgeldausschreibung-0',
     act: 0,
-    icon: '📜',
+    icon: '§',
     title: ['Kopfgeldausschreibung', 'Bounty Notice'],
     text: ['Ein Hologramm flackert vor dir. Es zeigt ein Bild eines gefährlichen Wesens und verspricht eine hohe Belohnung.', 'A hologram flickers before you. It shows a picture of a dangerous creature and promises a high reward.'],
     options: [
@@ -112,7 +112,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'asteroidenkloster-1',
     act: 1,
-    icon: '⛪',
+    icon: '✝',
     title: ['Asteroidenkloster', 'Asteroid Monastery'],
     text: ['Zwischen den Trümmern eines zerbrochenen Planeten ruht ein Kloster. Die Mönche hier meditieren über das Ende der Sterne.', 'Amidst the ruins of a broken planet lies a monastery. The monks here meditate on the end of the stars.'],
     options: [
@@ -133,7 +133,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'singender-eisplanet-1',
     act: 1,
-    icon: '❄️',
+    icon: '❄',
     title: ['Singender Eisplanet', 'Singing Ice Planet'],
     text: ['Die Oberfläche des Planeten vibriert in einer tiefen, melancholischen Frequenz. Das Eis scheint zu weinen.', 'The surface of the planet vibrates in a deep, melancholy frequency. The ice seems to weep.'],
     options: [
@@ -154,7 +154,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'sporenwolke-1',
     act: 1,
-    icon: '🍄',
+    icon: '♠',
     title: ['Sporenwolke', 'Spore Cloud'],
     text: ['Eine dichte, violette Wolke aus biologischen Sporen umhüllt deinen Sektor. Deine Sensoren warnen vor Toxinen.', 'A dense, violet cloud of biological spores envelops your sector. Your sensors warn of toxins.'],
     options: [
@@ -176,7 +176,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'lilienraumschiff-1',
     act: 1,
-    icon: '🌸',
+    icon: '❀',
     title: ['Lilienraumschiff', 'Lily Spaceship'],
     text: ['Ein Schiff aus weißem Metall und organischen Lilienstrukturen treibt friedlich. Es wirkt fast wie ein Garten im All.', 'A ship of white metal and organic lily structures drifts peacefully. It looks almost like a garden in space.'],
     options: [
@@ -197,7 +197,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'wuestenplanet-1',
     act: 1,
-    icon: '☀️',
+    icon: '☀',
     title: ['Wüstenplanet mit Doppelsonne', 'Desert Planet with Twin Suns'],
     text: ['Der Sand glüht unter der Hitze von zwei Sonnen. Die Hitze beeinträchtigt deine Systeme.', 'The sand glows under the heat of two suns. The heat affects your systems.'],
     options: [
@@ -219,7 +219,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'verwunschener-leuchtturm-2',
     act: 2,
-    icon: '🗼',
+    icon: '♜',
     title: ['Verwunschener Leuchtturm', 'Enchanted Lighthouse'],
     text: ['Ein Leuchtturm sendet ein Licht aus, das nicht physikalisch zu erklären ist. Es scheint die Zeit selbst zu krümmen.', 'A lighthouse emits a light that is not physically explainable. It seems to warp time itself.'],
     options: [
@@ -240,7 +240,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'droidenschrottplatz-2',
     act: 2,
-    icon: '🤖',
+    icon: '⚙',
     title: ['Droidenschrottplatz', 'Droid Scrap Yard'],
     text: ['Hunderte von zerbrochenen Droiden liegen hier verstreut. Einige scheinen noch immer schwach zu summen.', 'Hundreds of broken droids lie scattered here. Some still seem to hum weakly.'],
     options: [
@@ -261,7 +261,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'architekt-begegnung-2',
     act: 2,
-    icon: '👁️',
+    icon: '◉',
     title: ['Die Stimme der Entropie', 'The Voice of Entropy'],
     text: ['Eine Stimme hallt durch dein Schiff. Es ist der Architekt. Er fordert eine Antwort auf deine Existenz.', 'A voice echoes through your ship. It is the Architect. He demands an answer to your existence.'],
     options: [
@@ -282,7 +282,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'lumen-ruheplatz-2',
     act: 2,
-    icon: '✨',
+    icon: '✧',
     title: ['Lumen-Ruheplatz', 'Lumen Resting Place'],
     text: ['Das Sternenherz Lumen pulsiert ruhig. Es scheint die Umgebung in ein sanftes Gold zu tauchen.', 'The Star Heart Lumen pulses calmly. It seems to bathe the surroundings in a soft gold.'],
     options: [
@@ -303,7 +303,7 @@ export const EVENTS_A: EventDef[] = [
   {
     id: 'kassik-tor-begegnung-2',
     act: 2,
-    icon: '🎯',
+    icon: '⌖',
     title: ['Kassik-Tor im Schatten', 'Kassik-Tor in the Shadows'],
     text: ['Die insektoide Jägerin erscheint plötzlich. Sie hält ihre Waffe bereit, aber ihr Blick ist nachdenklich.', 'The insectoid hunter appears suddenly. She holds her weapon ready, but her gaze is thoughtful.'],
     options: [

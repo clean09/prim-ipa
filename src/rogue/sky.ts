@@ -36,8 +36,12 @@ let current: { hold(ms: number): void } | null = null;
 /** Himmel kurz anhalten (z. B. während die Walzen laufen). */
 export const skyHold = (ms: number) => current?.hold(ms);
 export class Sky {
-  readonly el: HTMLCanvasElement;
+  readonly el: HTMLDivElement;                                  // Hülle: Leinwand + (leicht) bewegte Ebenen
+  private cv: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
+  /** „leicht“ (Grafik mittel/niedrig, iPhone): EIN Standbild + vorgerenderte Ebenen, die nur per CSS-Transform wandern.
+   *  Dann rechnet der Prozessor pro Bild gar nichts – die Grafikeinheit verschiebt nur fertige Texturen. */
+  private lite = false; private staticPass = false;
   private w = 0; private h = 0; private dpr = 1;
   private theme = 'rand'; private mood: Mood = 'hub'; private bg: [string, string] = ['#1a2236', '#07060f'];
   private base: HTMLCanvasElement | null = null;              // vorgerenderter Verlauf + Nebel-Sprites
@@ -51,16 +55,19 @@ export class Sky {
 
   constructor() {
     current = this;
-    this.el = document.createElement('canvas');
+    this.el = document.createElement('div');
     this.el.className = 'sf-sky';
-    this.ctx = this.el.getContext('2d')!;
+    this.cv = document.createElement('canvas');
+    this.cv.className = 'sky-cv';
+    this.el.append(this.cv);
+    this.ctx = this.cv.getContext('2d')!;
     addEventListener('resize', this.resize);
     document.addEventListener('visibilitychange', this.vis);
   }
   private resize = () => {
     this.dpr = Math.min(sfs().gfx === 'high' ? 1.5 : 1, devicePixelRatio || 1);
     this.w = Math.max(1, this.el.clientWidth || innerWidth); this.h = Math.max(1, this.el.clientHeight || innerHeight);
-    this.el.width = Math.round(this.w * this.dpr); this.el.height = Math.round(this.h * this.dpr);
+    this.cv.width = Math.round(this.w * this.dpr); this.cv.height = Math.round(this.h * this.dpr);
     this.build();
   };
   private vis = () => { if (document.hidden) this.stop(); else this.start(); };
@@ -71,23 +78,29 @@ export class Sky {
     const changed = photoChanged || theme !== this.theme || (bg && (bg[0] !== this.bg[0] || bg[1] !== this.bg[1]));
     this.theme = THEME[theme] ? theme : 'rand'; this.mood = mood; if (bg) this.bg = bg;
     if (!this.w) this.resize(); else if (changed) this.build();
-    else this.seedBits();
+    else { this.seedBits(); if (this.lite) this.renderLite(); }
     this.start();
   }
-  start() { if (this.running || document.hidden) return; this.running = true; this.last = performance.now(); this.raf = requestAnimationFrame(this.frame); }
+  start() {
+    if ((sfs().gfx !== 'high') !== this.lite && this.w) { this.resize(); return; }   // Grafikstufe gewechselt → neu aufbauen
+    if (this.lite || this.running || document.hidden) return;
+    this.running = true; this.last = performance.now(); this.raf = requestAnimationFrame(this.frame);
+  }
   stop() { this.running = false; cancelAnimationFrame(this.raf); }
   private holdUntil = 0; private bolt = 0;
   /** Himmel für ms anhalten (Walzenlauf): die Drift ist so langsam, dass man es nicht sieht – spart aber viel Rechenzeit. */
   hold(ms: number) { this.holdUntil = performance.now() + ms; }
-  dispose() { this.stop(); removeEventListener('resize', this.resize); document.removeEventListener('visibilitychange', this.vis); this.el.remove(); }
+  dispose() { this.stop(); removeEventListener('resize', this.resize); document.removeEventListener('visibilitychange', this.vis); this.el.remove(); if (current === this) current = null; }
 
   // ------------------------------------------------------------------------------------------- Aufbau
   private build() {
     const { w, h } = this, th = THEME[this.theme];
+    this.lite = sfs().gfx !== 'high';
+    if (this.lite) this.stop();
     const key = this.mood === 'hub' ? 'hub' : PHOTO[this.theme];
-    this.img = key ? photo(key, () => { if (PHOTO[this.theme] === key || (this.mood === 'hub' && key === 'hub')) { this.img = photos.get(key)!; if (this.still) this.start(); } }) : null;
+    this.img = key ? photo(key, () => { if (PHOTO[this.theme] === key || (this.mood === 'hub' && key === 'hub')) { this.img = photos.get(key)!; if (this.lite) this.renderLite(); else if (this.still) this.start(); } }) : null;
     // Grundverlauf einmal vorrendern
-    const b = document.createElement('canvas'); b.width = this.el.width; b.height = this.el.height;
+    const b = document.createElement('canvas'); b.width = this.cv.width; b.height = this.cv.height;
     const g = b.getContext('2d')!; g.scale(this.dpr, this.dpr);
     const lin = g.createLinearGradient(0, 0, 0, h); lin.addColorStop(0, this.bg[0]); lin.addColorStop(0.55, this.bg[1]); lin.addColorStop(1, this.bg[1]);
     g.fillStyle = lin; g.fillRect(0, 0, w, h);
@@ -102,6 +115,7 @@ export class Sky {
     const count = this.theme === 'kern' ? 260 : this.theme === 'rand' ? 90 : 170;
     this.stars = Array.from({ length: count }, () => ({ x: Math.random() * w, y: Math.random() * h, z: Math.random(), tw: Math.random() * 6.28 }));
     this.seedBits();
+    if (this.lite) this.renderLite();
   }
   /** Themen-Objekte (Asteroiden, Flocken, Funken …) + Stimmungs-Teilchen. */
   private seedBits() {
@@ -126,6 +140,57 @@ export class Sky {
     if (m === 'won' || m === 'reward') add(13, m === 'won' ? 80 : 30, () => ({ y: h * Math.random(), vy: -(15 + Math.random() * 40), vx: (Math.random() - 0.5) * 8, r: 1 + Math.random() * 2.4 }));
     if (m === 'lost') add(14, 70, () => ({ vy: 6 + Math.random() * 12, vx: 2 + Math.random() * 4, r: 0.8 + Math.random() * 1.8 }));
     if (m === 'rest') add(15, 18, () => ({ vy: -(2 + Math.random() * 3), r: 1 + Math.random() * 1.6 }));
+  }
+
+
+  // ------------------------------------------------------------------------------------------- Leicht-Modus (iPhone)
+  /** Standbild + Ebenen: Sterne und Themen-Teilchen werden EINMAL auf doppelt hohe Kacheln gemalt und per CSS
+   *  endlos verschoben (Compositor, kein Neuzeichnen). Kamerafahrt = CSS-Skalierung des Standbilds. */
+  private renderLite() {
+    const { w, h } = this;
+    if (!w) return;
+    this.staticPass = true; this.t = 0; this.draw(0); this.staticPass = false;
+    this.el.querySelectorAll('.sky-layer').forEach(e => e.remove());
+    const th = THEME[this.theme];
+    const tile = (paint: (g: CanvasRenderingContext2D) => void, cls: string, dur: number) => {
+      const c = document.createElement('canvas');
+      c.width = Math.round(w * this.dpr); c.height = Math.round(h * 2 * this.dpr);
+      const g = c.getContext('2d')!; g.scale(this.dpr, this.dpr);
+      paint(g);
+      c.className = 'sky-layer ' + cls; c.style.setProperty('--dur', `${Math.max(8, dur).toFixed(1)}s`);
+      this.el.append(c);
+    };
+    // Sterne: zwei Kopien übereinander → nahtlose Schleife
+    const star = (g: CanvasRenderingContext2D, bright: boolean) => {
+      for (const s of this.stars) {
+        if (bright !== s.z > 0.85) continue;
+        const r = 0.4 + s.z * 1.3, a = 0.3 + s.z * 0.6;
+        for (const oy of [0, h]) {
+          g.fillStyle = rgba(th.star, a); g.fillRect(s.x - r / 2, s.y + oy - r / 2, r, r);
+          if (s.z > 0.93) { g.fillStyle = rgba(th.star, a * 0.3); g.fillRect(s.x - r * 2.5, s.y + oy - 0.4, r * 5, 0.8); g.fillRect(s.x - 0.4, s.y + oy - r * 2.5, 0.8, r * 5); }
+        }
+      }
+    };
+    const pace = this.mood === 'boss' ? 2 : this.mood === 'fight' || this.mood === 'elite' ? 1.4 : 1;
+    tile(g => star(g, false), 'stars up', 260 / pace);
+    tile(g => star(g, true), 'stars up twinkle', 190 / pace);
+    // Themen-Teilchen in ihrer Hauptrichtung
+    if (this.bits.length) {
+      const vy = this.bits.reduce((a, b) => a + b.vy, 0) / this.bits.length;
+      const speed = Math.max(4, Math.min(160, Math.abs(vy))) * pace;
+      const saved = this.ctx;
+      tile(g => {
+        this.ctx = g;
+        for (const b of this.bits) for (const oy of [0, h]) { g.save(); g.translate(0, oy); this.bit({ ...b, vx: 0, vy: 0, vr: 0 }, 0); g.restore(); }
+        this.ctx = saved;
+      }, 'bits ' + (vy > 0 ? 'down' : 'up'), h / speed);
+    }
+    // Stimmung: Boss-Puls, Sturmblitze, Tiefsee-Lichtschimmer als reine Deckkraft-Ebenen
+    const fx = (cls: string) => { const d = document.createElement('div'); d.className = 'sky-layer ' + cls; this.el.append(d); };
+    if (this.mood === 'boss') fx('pulse-boss');
+    if (this.theme === 'sturm') fx('flash-storm');
+    this.el.classList.toggle('still', this.still);
+    this.el.classList.toggle('kb', !!this.img);
   }
 
   // ------------------------------------------------------------------------------------------- Bild
@@ -170,14 +235,14 @@ export class Sky {
     // Themenbühne hinter den Sternen
     if (this.theme === 'eis') this.aurora();
     if (this.theme === 'pulsar') this.pulsar();
-    if (this.theme === 'sturm') { if (Math.random() < dt * 0.25) this.bolt = 1; if (this.bolt > 0) { ctx.fillStyle = `rgba(210,190,255,${0.18 * this.bolt})`; ctx.fillRect(0, 0, w, h); this.bolt -= dt * 3; } }
+    if (this.theme === 'sturm' && !this.staticPass) { if (Math.random() < dt * 0.25) this.bolt = 1; if (this.bolt > 0) { ctx.fillStyle = `rgba(210,190,255,${0.18 * this.bolt})`; ctx.fillRect(0, 0, w, h); this.bolt -= dt * 3; } }
     if (this.theme === 'tiefsee') { for (let k = 0; k < 4; k++) { const x = w * (0.15 + k * 0.24) + Math.sin(t * 0.2 + k) * 30, g = ctx.createLinearGradient(x, 0, x + 60, h); g.addColorStop(0, `rgba(140,200,255,${0.07 + 0.03 * Math.sin(t * 0.5 + k * 2)})`); g.addColorStop(1, 'rgba(140,200,255,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - 20, 0); ctx.lineTo(x + 30, 0); ctx.lineTo(x + 120, h); ctx.lineTo(x + 40, h); ctx.fill(); } }
     if (this.theme === 'horizont' && !this.img) this.blackHole();
     if (this.theme === 'kern') { const g = ctx.createRadialGradient(w / 2, h * 1.15, 0, w / 2, h * 1.15, h * 0.9); g.addColorStop(0, `rgba(255,160,80,${0.2 + 0.06 * Math.sin(t * 1.7)})`); g.addColorStop(1, 'rgba(255,120,60,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }
 
     // Sterne (Parallaxe-Drift, Funkeln; am Rand verlöschen sie)
     const drift = this.mood === 'map' ? 3 : 6;
-    for (const s of this.stars) {
+    for (const s of this.staticPass ? [] : this.stars) {
       s.x -= drift * (0.2 + s.z) * dt;
       if (this.theme === 'horizont') { const dx = s.x - w * (this.img ? 0.5 : 0.7), dy = s.y - h * (this.img ? 0.5 : 0.4); const d = Math.hypot(dx, dy) || 1; s.x -= (dx / d) * 6 * dt + (dy / d) * 10 * dt; s.y -= (dy / d) * 6 * dt - (dx / d) * 10 * dt; if (d < 30) { s.x = Math.random() * w; s.y = Math.random() * h; } }
       if (s.x < 0) s.x += w;
@@ -190,7 +255,7 @@ export class Sky {
     }
 
     // Sternschnuppen (selten)
-    if (Math.random() < dt * (this.mood === 'won' ? 1.5 : 0.12)) this.comets.push({ x: Math.random() * w, y: Math.random() * h * 0.5, vx: -(220 + Math.random() * 200), vy: 80 + Math.random() * 80, life: 1 });
+    if (!this.staticPass && Math.random() < dt * (this.mood === 'won' ? 1.5 : 0.12)) this.comets.push({ x: Math.random() * w, y: Math.random() * h * 0.5, vx: -(220 + Math.random() * 200), vy: 80 + Math.random() * 80, life: 1 });
     ctx.lineCap = 'round';
     for (const c of this.comets) {
       c.x += c.vx * dt; c.y += c.vy * dt; c.life -= dt * 1.2;
@@ -201,7 +266,7 @@ export class Sky {
 
     // Objekte und Stimmungsteilchen
     ctx.globalCompositeOperation = 'source-over';
-    for (const b of this.bits) this.bit(b, dt);
+    if (!this.staticPass) for (const b of this.bits) this.bit(b, dt);
 
     // Stimmung: Vignette / Tönung
     ctx.globalCompositeOperation = 'source-over';

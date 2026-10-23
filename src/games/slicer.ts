@@ -225,9 +225,9 @@ export function runSlicer(stage: HTMLElement, exit: () => void, again: () => voi
       v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(255,40,40,${0.45 * flashRed})`);
       g.fillStyle = v; g.fillRect(0, 0, W, H); flashRed = Math.max(0, flashRed - dt * 2);
     }
-    leftChip.textContent = `${'❤️'.repeat(Math.max(0, lives))}${'🖤'.repeat(Math.max(0, 3 - lives))}`;
+    leftChip.textContent = `${'♥'.repeat(Math.max(0, lives))}${'♡'.repeat(Math.max(0, 3 - lives))}`;
     scoreChip.textContent = N(score);
-    if (swipeCombo >= 5) { comboEl.textContent = `🗡 ${swipeCombo}`; comboEl.classList.add('on'); } else comboEl.classList.remove('on');
+    if (swipeCombo >= 5) { comboEl.textContent = `† ${swipeCombo}`; comboEl.classList.add('on'); } else comboEl.classList.remove('on');
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
@@ -235,9 +235,9 @@ export function runSlicer(stage: HTMLElement, exit: () => void, again: () => voi
   async function begin() {
     overlay.style.pointerEvents = 'auto';
     await tutorial(overlay, 'slicer', [
-      ['🪐', L('Wische durch Planeten mit zusammengesetzten Zahlen (oder tippe sie an) – sie zerbrechen in zwei Faktoren: 12 → 2 und 6, dann 6 → 2 und 3. Die Bruchstücke schweben kurz, damit du sie erwischst.', 'Swipe through planets with composite numbers (or tap them) – they break into two factors: 12 → 2 and 6, then 6 → 2 and 3. The pieces float for a moment so you can catch them.')],
-      ['💎', L('Primzahlen sind unzerbrechlich! Schneidest du eine an, kostet das ein Leben. Lass sie einfach fallen – das bringt Punkte.', 'Primes are unbreakable! Slicing one costs a life. Just let them fall – that scores points.')],
-      ['⚠️', L('Fällt eine zusammengesetzte Zahl unzerteilt herunter, kostet das ebenfalls ein Leben. Mehrere Zahlen mit einem Wisch geben Bonus!', 'If a composite number falls unsplit, that costs a life too. Several numbers in one swipe give a bonus!')],
+      ['♄', L('Wische durch Planeten mit zusammengesetzten Zahlen (oder tippe sie an) – sie zerbrechen in zwei Faktoren: 12 → 2 und 6, dann 6 → 2 und 3. Die Bruchstücke schweben kurz, damit du sie erwischst.', 'Swipe through planets with composite numbers (or tap them) – they break into two factors: 12 → 2 and 6, then 6 → 2 and 3. The pieces float for a moment so you can catch them.')],
+      ['◆', L('Primzahlen sind unzerbrechlich! Schneidest du eine an, kostet das ein Leben. Lass sie einfach fallen – das bringt Punkte.', 'Primes are unbreakable! Slicing one costs a life. Just let them fall – that scores points.')],
+      ['⚠', L('Fällt eine zusammengesetzte Zahl unzerteilt herunter, kostet das ebenfalls ein Leben. Mehrere Zahlen mit einem Wisch geben Bonus!', 'If a composite number falls unsplit, that costs a life too. Several numbers in one swipe give a bonus!')],
     ]);
     overlay.style.pointerEvents = 'none';
     await countdown(overlay);
@@ -270,8 +270,8 @@ export function runSlicer(stage: HTMLElement, exit: () => void, again: () => voi
     }), 350);
     if (lbConfigured() && settings().lbConsent === 'yes' && score >= 10)
       setTimeout(() => fetchModel('split', gameGroup('split'), score).then(r => {
-        world.textContent = !r.stats || r.stats.n < 2 || r.below == null ? L('🌍 Du bist unter den ersten Spielern weltweit!', '🌍 You are among the first players worldwide!')
-          : L(`🌍 Besser als ${Math.round(r.below * 100)} % von ${N(r.stats.n)} Spielern`, `🌍 Better than ${Math.round(r.below * 100)} % of ${N(r.stats.n)} players`);
+        world.textContent = !r.stats || r.stats.n < 2 || r.below == null ? L('⊕ Du bist unter den ersten Spielern weltweit!', '⊕ You are among the first players worldwide!')
+          : L(`⊕ Besser als ${Math.round(r.below * 100)} % von ${N(r.stats.n)} Spielern`, `⊕ Better than ${Math.round(r.below * 100)} % of ${N(r.stats.n)} players`);
       }).catch(() => {}), 1600);
   }
 

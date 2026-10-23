@@ -51,14 +51,14 @@ export function runPiGame(stage: HTMLElement, exit: () => void, again: () => voi
 
   const render = () => {
     counter.textContent = N(pos);
-    livesEl.textContent = `${'❤️'.repeat(3 - strikes)}${'🖤'.repeat(strikes)}`;
+    livesEl.textContent = `${'♥'.repeat(3 - strikes)}${'♡'.repeat(strikes)}`;
     const shown = digits.slice(Math.max(0, pos - 28), pos);
     const head = pos <= 28 ? '3,' : '…';
     strip.replaceChildren(h('span', { class: 'pi-done' }, head + shown.replace(/(\d{5})(?=\d)/g, '$1 ')), h('span', { class: 'pi-cursor' }, '_'));
   };
 
   const burst = () => {
-    const el = h('div', { class: 'pi-burst' }, pos % 100 === 0 ? `🎉 ${pos}!` : `✨ ${pos}`);
+    const el = h('div', { class: 'pi-burst' }, pos % 100 === 0 ? `✺ ${pos}!` : `✧ ${pos}`);
     overlay.append(el); setTimeout(() => el.remove(), 1200);
   };
 
@@ -110,8 +110,8 @@ export function runPiGame(stage: HTMLElement, exit: () => void, again: () => voi
     });
     if (lbConfigured() && settings().lbConsent === 'yes' && pos >= 1 && !practice)
       setTimeout(() => fetchModel('pidigits', 'Pi', pos).then(r => {
-        world.textContent = !r.stats || r.stats.n < 2 || r.below == null ? L('🌍 Du bist unter den ersten π-Spielern weltweit!', '🌍 You are among the first π players worldwide!')
-          : L(`🌍 Besser als ${Math.round(r.below * 100)} % von ${N(r.stats.n)} · Bestwert weltweit ${N(r.stats.best)}`, `🌍 Better than ${Math.round(r.below * 100)} % of ${N(r.stats.n)} · world best ${N(r.stats.best)}`);
+        world.textContent = !r.stats || r.stats.n < 2 || r.below == null ? L('⊕ Du bist unter den ersten π-Spielern weltweit!', '⊕ You are among the first π players worldwide!')
+          : L(`⊕ Besser als ${Math.round(r.below * 100)} % von ${N(r.stats.n)} · Bestwert weltweit ${N(r.stats.best)}`, `⊕ Better than ${Math.round(r.below * 100)} % of ${N(r.stats.n)} · world best ${N(r.stats.best)}`);
       }).catch(() => {}), 1500);
   }
 

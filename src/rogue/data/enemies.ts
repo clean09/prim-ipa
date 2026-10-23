@@ -21,7 +21,7 @@ export const ENEMIES: EnemyDef[] = [
     next: (_e, t) => cyc(t, [atk(2, 4), atk(3, 3)]) },
   { id: 'freibeuter', name: T('Gulmarr-Freibeuter', 'Gulmarr Freebooter'), look: { kind: 'jaeger', seed: 15, hue: 90 }, hp: [26, 30], tier: 'normal',
     passive: T('Schneckenpirat: entert und stiehlt 10 Gold.', 'Slug pirate: boards you and steals 10 gold.'),
-    next: (_e, t) => cyc(t, [atk(7), sp('Entern', 'Board', '🪝'), atk(9)]), special: (_e, c) => { c.gainGold(-10); c.log(T('Der Freibeuter stiehlt 10 Gold!', 'The freebooter steals 10 gold!')); } },
+    next: (_e, t) => cyc(t, [atk(7), sp('Entern', 'Board', '∫'), atk(9)]), special: (_e, c) => { c.gainGold(-10); c.log(T('Der Freibeuter stiehlt 10 Gold!', 'The freebooter steals 10 gold!')); } },
   { id: 'guertelwurm', name: T('Gürtelwurm', 'Belt Worm'), look: { kind: 'wurm', seed: 16, hue: 25 }, hp: [68, 74], tier: 'elite',
     passive: T('Gräbt sich ein: jede 3. Runde 15 Schild.', 'Burrows: every 3rd turn 15 shield.'), next: (_e, t) => (t % 3 === 0 ? blk(15) : cyc(t, [atk(12), atk(5, 3)])) },
   { id: 'rrekk', name: T('Korsarenkapitän Rrekk', 'Corsair Captain Rrekk'), look: { kind: 'jaeger', seed: 17, hue: 0 }, hp: [62, 68], tier: 'elite',
@@ -34,7 +34,7 @@ export const ENEMIES: EnemyDef[] = [
   { id: 'felsbrocken', name: T('Singender Felsbrocken', 'Singing Boulder'), look: { kind: 'kristall', seed: 19, hue: 25 }, hp: [14, 16], tier: 'minion', next: () => atk(4) },
   { id: 'mahlstrom', name: T('Kapitän Mahlstrom', 'Captain Maelstrom'), look: { kind: 'boss', seed: 20, hue: 200, boss: 'korsar' }, hp: [150, 150], tier: 'boss',
     passive: T('Heizt deinen Reaktor auf und entert dich.', 'Heats your reactor and boards you.'),
-    next: (_e, t) => cyc(t, [atk(8, 2), { k: 'heat', n: 3 }, atk(16), sp('Entern', 'Board', '🪝'), { k: 'summon', id: 'freibeuter' }]),
+    next: (_e, t) => cyc(t, [atk(8, 2), { k: 'heat', n: 3 }, atk(16), sp('Entern', 'Board', '∫'), { k: 'summon', id: 'freibeuter' }]),
     special: (_e, c) => { c.gainGold(-20); c.fx('enemyHit', { n: 6, times: 2 }); c.log(T('Mahlstrom entert dein Schiff!', 'Maelstrom boards your ship!')); } },
 
   // ======================================================================================= 1b · Frostring von Boreal
@@ -112,11 +112,11 @@ export const ENEMIES: EnemyDef[] = [
     next: (_e, t) => cyc(t, [atk(18), { k: 'debuff', jam: 2 }, atk(9, 2)]) },
   { id: 'gargantua', name: T('Gargantua', 'Gargantua'), look: { kind: 'boss', seed: 98, hue: 30, boss: 'gargantua' }, hp: [290, 290], tier: 'boss',
     passive: T('Zieht Schrott in deine Walzen; seine Gezeiten halbieren deinen Schild.', 'Pulls junk into your reels; its tides halve your shield.'),
-    next: (_e, t) => cyc(t, [atk(16), { k: 'junk', id: 'dunkelnebel' }, sp('Gezeitenkraft', 'Tidal Force', '🌊'), atk(8, 3), { k: 'junk', id: 'leck' }, atk(28)]),
+    next: (_e, t) => cyc(t, [atk(16), { k: 'junk', id: 'dunkelnebel' }, sp('Gezeitenkraft', 'Tidal Force', '≋'), atk(8, 3), { k: 'junk', id: 'leck' }, atk(28)]),
     special: (_e, c) => { c.block = Math.floor(c.block / 2); c.fx('enemyHit', { n: 10 }); c.log(T('Die Gezeiten zerren an deinem Schild!', 'The tides tear at your shield!')); } },
   { id: 'uhrmacher', name: T('Der Uhrmacher', 'The Clockmaker'), look: { kind: 'boss', seed: 99, hue: 45, boss: 'uhrmacher' }, hp: [280, 280], tier: 'boss',
     passive: T('Jede 3. Runde: Zeitschleife – deine Walzen klemmen, er heilt 20.', 'Every 3rd turn: time loop – your reels jam, he heals 20.'),
-    next: (_e, t) => (t % 3 === 0 ? sp('Zeitschleife', 'Time Loop', '⏳') : cyc(t, [atk(14), atk(6, 3)])),
+    next: (_e, t) => (t % 3 === 0 ? sp('Zeitschleife', 'Time Loop', '⧗') : cyc(t, [atk(14), atk(6, 3)])),
     special: (e, c) => { c.jam += 2; e.hp = Math.min(e.max, e.hp + 20); c.log(T('Die Zeit läuft zurück …', 'Time runs backwards …')); } },
 
   // ======================================================================================= 3b · Galaktischer Kern
@@ -163,7 +163,7 @@ export const ENEMIES: EnemyDef[] = [
   { id: 'flaggschiff', name: T('Phantomflaggschiff Kesh', 'Phantom Flagship Kesh'), look: { kind: 'boss', seed: 150, hue: 190, boss: 'flaggschiff' }, hp: [185, 185], tier: 'boss',
     passive: T('Kündigt seine Breitseite an – Schild bereithalten! Unter halben LP: Geisterbesatzung, +3 Stärke.', 'Announces its broadside – have shields ready! Below half HP: ghost crew, +3 strength.'),
     onHurt: (e, c) => { if (!e.mem.ph && e.hp <= e.max / 2) { e.mem.ph = 1; e.str += 3; c.summon('geisterlotse'); c.log(T('Die Toten bemannen die Kanonen!', 'The dead man the cannons!')); } },
-    next: (_e, t) => cyc(t, [atk(9), { k: 'debuff', vuln: 2 }, sp('Breitseite lädt', 'Broadside loading', '💥'), atk(24), atk(5, 3)]), special: e => { e.block += 10; } },
+    next: (_e, t) => cyc(t, [atk(9), { k: 'debuff', vuln: 2 }, sp('Breitseite lädt', 'Broadside loading', '✸'), atk(24), atk(5, 3)]), special: e => { e.block += 10; } },
 
   // ======================================================================================= 2b · Das Lebende Riff
   { id: 'glutpolyp', name: T('Glutpolyp', 'Ember Polyp'), look: { kind: 'kristall', seed: 161, hue: 150 }, hp: [24, 28], tier: 'normal', next: (_e, t) => cyc(t, [blk(6), atk(4, 2), atk(8)]) },
@@ -179,7 +179,7 @@ export const ENEMIES: EnemyDef[] = [
     next: (_e, t) => cyc(t, [blk(16), atk(8, 2), { k: 'rad', n: 4 }, atk(16)]) },
   { id: 'sternangler', name: T('Sternenangler', 'Star Angler'), look: { kind: 'auge', seed: 167, hue: 58 }, hp: [74, 80], tier: 'elite',
     passive: T('Sein Köderlicht stiehlt 15 Gold – und schnappt dann zu.', 'Its lure steals 15 gold – then it snaps.'),
-    next: (_e, t) => cyc(t, [sp('Köderlicht', 'Lure light', '💡'), atk(18), { k: 'debuff', weak: 2 }, atk(6, 2)]),
+    next: (_e, t) => cyc(t, [sp('Köderlicht', 'Lure light', '☼'), atk(18), { k: 'debuff', weak: 2 }, atk(6, 2)]),
     special: (_e, c) => { c.gainGold(-15); c.log(T('Das Licht lockt – 15 Gold verschwinden im Maul.', 'The light lures – 15 gold vanish into the maw.')); } },
   { id: 'riffmutter', name: T('Ylaa, Mutter des Riffs', 'Ylaa, Mother of the Reef'), look: { kind: 'boss', seed: 168, hue: 160, boss: 'riffmutter' }, hp: [180, 180], tier: 'boss',
     passive: T('Jede 4. Runde Blüte: heilt 10 % und gebiert einen Polypen.', 'Every 4th turn she blooms: heals 10 % and births a polyp.'),

@@ -16,10 +16,10 @@ import { warp } from '../ui/warp';
 
 interface Card { id: GameId; art: string; title: () => string; sub: () => string; space: [SpaceKind, number]; unit: () => string; wide?: boolean }
 const CARDS: Card[] = [
-  { id: 'classic', art: '🎯', title: () => L('Klassisch', 'Classic'), sub: () => L('Primzahlen antippen · 3 Leben', 'Tap primes · 3 lives'), space: ['planet', 205], unit: () => L('Pkt.', 'pts') },
-  { id: 'blitz', art: '⚡', title: () => 'Blitz', sub: () => L('60 Sekunden Punktejagd', '60-second score attack'), space: ['sun', 32], unit: () => L('Pkt.', 'pts') },
-  { id: 'split', art: '🪐', title: () => L('Planetenspalter', 'Planet Splitter'), sub: () => L('Planeten in ihre Faktoren zerlegen', 'Break planets into their factors'), space: ['ringed', 330], unit: () => L('Pkt.', 'pts') },
-  { id: 'profi', art: '🧠', title: () => L('Mathe-Profi', 'Math pro'), sub: () => L('Endlos · immer größere Primzahlen', 'Endless · ever larger primes'), space: ['galaxy', 265], unit: () => L('Stufe', 'stage') },
+  { id: 'classic', art: '⌖', title: () => L('Klassisch', 'Classic'), sub: () => L('Primzahlen antippen · 3 Leben', 'Tap primes · 3 lives'), space: ['planet', 205], unit: () => L('Pkt.', 'pts') },
+  { id: 'blitz', art: '↯', title: () => 'Blitz', sub: () => L('60 Sekunden Punktejagd', '60-second score attack'), space: ['sun', 32], unit: () => L('Pkt.', 'pts') },
+  { id: 'split', art: '♄', title: () => L('Planetenspalter', 'Planet Splitter'), sub: () => L('Planeten in ihre Faktoren zerlegen', 'Break planets into their factors'), space: ['ringed', 330], unit: () => L('Pkt.', 'pts') },
+  { id: 'profi', art: '∿', title: () => L('Mathe-Profi', 'Math pro'), sub: () => L('Endlos · immer größere Primzahlen', 'Endless · ever larger primes'), space: ['galaxy', 265], unit: () => L('Stufe', 'stage') },
   { id: 'pi', art: 'π', title: () => L('π-Stellen', 'π digits'), sub: () => L('Wie viele Nachkommastellen kennst du?', 'How many decimals do you know?'), space: ['nebula', 170], unit: () => L('Stellen', 'digits'), wide: true },
 ];
 
@@ -36,7 +36,7 @@ export function mountGames(root: HTMLElement) {
       h('div', { style: { font: '900 19px system-ui' } }, levelTitle(lv.level)),
       h('div', { style: { fontSize: '13px', opacity: '.85', marginTop: '2px' } }, L(`Level ${lv.level} · ${N(lv.into)} / ${N(lv.need)} XP`, `Level ${lv.level} · ${N(lv.into)} / ${N(lv.need)} XP`)),
       h('div', { class: 'g-xpbar', style: { marginTop: '8px' } }, h('div', { class: 'g-xpfill', style: { width: `${lv.frac * 100}%` } }))),
-    h('div', { style: { textAlign: 'center', flex: 'none' } }, h('div', { style: { fontSize: '26px' } }, s.streak ? '🔥' : '💤'),
+    h('div', { style: { textAlign: 'center', flex: 'none' } }, h('div', { style: { fontSize: '26px' } }, s.streak ? '♨' : 'z'),
       h('div', { style: { font: '900 15px system-ui' } }, String(s.streak || 0)), h('div', { style: { fontSize: '10.5px', opacity: '.75' } }, L('Tage', 'days'))));
 
   // ---------------------------------------------------------------- Tages-Challenge
@@ -50,7 +50,7 @@ export function mountGames(root: HTMLElement) {
   const timer = setInterval(tick, 30_000);
   const daily = h('div', { class: 'hub-daily space', style: spaceStyle('moon', 45, true, 5) as any, onclick: () => { sfx.tap(); launch('daily'); } },
     h('div', { class: 'sart' }),
-    h('div', { style: { fontSize: '40px' } }, '📅'),
+    h('div', { style: { fontSize: '40px' } }, '☷'),
     h('div', { style: { flex: '1' } },
       h('div', { style: { font: '900 18px system-ui' } }, L('Tages-Challenge', 'Daily challenge')),
       h('div', { style: { fontSize: '13px', fontWeight: '700' } }, dailyDone ? L(`Heute: ${N(s.daily!.score)} Punkte – nochmal versuchen?`, `Today: ${N(s.daily!.score)} points – try again?`) : L('Für alle dieselben Zahlen · 60 s', 'Same numbers for everyone · 60 s')),
@@ -72,13 +72,13 @@ export function mountGames(root: HTMLElement) {
   // ---------------------------------------------------------------- Erfolge + Weltweit
   const got = s.achievements.length;
   const achRow = h('div', { class: 'card', style: { cursor: 'pointer' }, onclick: () => showAchievements() },
-    h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', null, L('🏅 Erfolge', '🏅 Achievements')), h('span', { class: 'sub' }, `${got} / ${ACH.length} ›`)),
+    h('div', { class: 'row', style: { justifyContent: 'space-between' } }, h('b', null, L('✪ Erfolge', '✪ Achievements')), h('span', { class: 'sub' }, `${got} / ${ACH.length} ›`)),
     h('div', { style: { display: 'flex', gap: '8px', marginTop: '10px', overflow: 'hidden' } },
       ACH.map(([id, icon]) => h('div', { style: { width: '38px', height: '38px', flex: 'none', borderRadius: '12px', display: 'grid', placeItems: 'center', fontSize: '20px',
         background: s.achievements.includes(id) ? 'linear-gradient(180deg,#ffe066,#ffab1f)' : 'var(--card2)', opacity: s.achievements.includes(id) ? '1' : '.4', filter: s.achievements.includes(id) ? '' : 'grayscale(1)' } }, icon))));
-  const world = h('button', { class: 'btn block', onclick: () => go('board') }, L('🌍 Weltweite Bestenliste', '🌍 Worldwide leaderboard'));
+  const world = h('button', { class: 'btn block', onclick: () => go('board') }, L('⊕ Weltweite Bestenliste', '⊕ Worldwide leaderboard'));
   const tips = TIPS();
-  const tip = h('p', { class: 'muted small', style: { textAlign: 'center' } }, `💡 ${tips[Math.floor(Math.random() * tips.length)]}`);
+  const tip = h('p', { class: 'muted small', style: { textAlign: 'center' } }, `☼ ${tips[Math.floor(Math.random() * tips.length)]}`);
 
   // ---------------------------------------------------------------- PRIMFALL (Roguelike) als Hauptspiel
   const m = meta(), saved = loadRun(), goal = nextGoal();

@@ -17,7 +17,9 @@ export function initNav(nav: (id: string) => void, rb: () => void) { navigate = 
 
 let immersiveFn: (on: boolean) => void = () => {};
 /** Kopf- und Tab-Leiste ausblenden (Vollbild-Grafik). */
-export const immersive = (on: boolean) => immersiveFn(on);
+/** Vollbildseiten (Spiele) verdecken den App-Hintergrund – der darf dann ruhen (sonst rechnet er unsichtbar mit). */
+export const fullscreen = { on: false };
+export const immersive = (on: boolean) => { const ch = fullscreen.on !== on; fullscreen.on = on; immersiveFn(on); if (ch) busyListeners.forEach(f => f()); };
 export function initImmersive(fn: (on: boolean) => void) { immersiveFn = fn; }
 
 /** Wird aufgerufen, wenn die App in den Hintergrund geht. Gibt Abmeldefunktion zurück. */

@@ -38,11 +38,21 @@ function iconize(root: Node) {
     t.replaceWith(frag);
   }
 }
+/** iOS zeigt Zeichen wie ⚔ ⚙ ☠ ❄ gern als bunte Emojis – ein Textvariante-Selektor (U+FE0E) erzwingt die schlichte Glyphe. */
+const EMOJI_CAPABLE = /([←-⇿⌀-⏿■-➿⤀-⥿⬀-⯿])(?![︎️])/g;
+function textGlyphs(root: Node) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const v = n.nodeValue ?? '';
+    EMOJI_CAPABLE.lastIndex = 0;
+    if (EMOJI_CAPABLE.test(v) && !n.parentElement?.closest('svg, input, textarea')) n.nodeValue = v.replace(EMOJI_CAPABLE, '$1︎');
+  }
+}
 export function attachIcons(...roots: HTMLElement[]) {
   // Nur geänderte Teile prüfen (Kampf ändert ständig Zahlen – ein Vollscan je Bild wäre teuer)
   const pending = new Set<Node>();
   let queued = false;
-  const flush = () => { queued = false; pending.forEach(n => { if (n.isConnected) { iconize(n); fitTexts(n); } }); pending.clear(); };
+  const flush = () => { queued = false; pending.forEach(n => { if (n.isConnected) { iconize(n); textGlyphs(n); fitTexts(n); } }); pending.clear(); };
   const mo = new MutationObserver(recs => {
     for (const r of recs) {
       if (r.type === 'characterData') { if (r.target.parentNode) pending.add(r.target.parentNode); }
@@ -50,7 +60,7 @@ export function attachIcons(...roots: HTMLElement[]) {
     }
     if (!queued && pending.size) { queued = true; requestAnimationFrame(flush); }
   });
-  roots.forEach(r => { mo.observe(r, { childList: true, subtree: true, characterData: true }); iconize(r); });
+  roots.forEach(r => { mo.observe(r, { childList: true, subtree: true, characterData: true }); iconize(r); textGlyphs(r); });
   mo.observe(document.body, { childList: true, subtree: false });
   return () => mo.disconnect();
 }

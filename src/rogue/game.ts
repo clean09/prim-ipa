@@ -5,7 +5,7 @@ import { todayKey } from '../core/leaderboard';
 import { confirmSheet, h, sheet, toast } from '../ui/dom';
 import { SYM, SYMBOLS } from './data/symbols';
 import { MOD } from './data/modules';
-import { ENEMIES, SECTOR } from './data/enemies';
+import { ENEMIES, ENEMY, SECTOR } from './data/enemies';
 import { EVENTS } from './data/events';
 import { MUTATORS, RESEARCH, SHIP, SHIPS } from './data/ships';
 import { CAST, CHAPTERS } from './data/story';
@@ -34,7 +34,7 @@ import {
 import { EventDef, EventOption, MapNode, Run } from './types';
 import { NODE_ICON, NODE_NAME, cardEl, cardPreview, chooseReel, longPress, pickSymbol, playChapter, portrait, showConsts, showReels, topBar, tx } from './ui/parts';
 import { rules, runFight } from './ui/reactorView';
-import { coinIcon, cornerOrn, dustIcon, enemyHtml, frameImg, vineRule, ornament, sectorPattern, shipHtml, symbolHtml } from './art';
+import { prewarmArt, coinIcon, cornerOrn, dustIcon, enemyHtml, frameImg, vineRule, ornament, sectorPattern, shipHtml, symbolHtml } from './art';
 
 export class Game {
   run: Run | null = null;
@@ -174,7 +174,7 @@ export class Game {
     const close = sheet(L('Schiff wählen', 'Choose ship'), h('div', { class: 'sf-pickl' }, SHIPS.map(s => {
       const ok = shipUnlocked(s.id);
       return h('button', { class: 'sf-pickrow' + (this.ship === s.id ? ' on' : '') + (ok ? '' : ' locked'), onclick: () => { if (!ok) { toast(L('Im Forschungslabor freischalten.', 'Unlock in the research lab.')); return; } this.ship = s.id; close(); this.hub('play'); } },
-        h('span', { class: 'ic ship', html: shipHtml(s.hull, s.hue) }), h('div', null, h('b', null, tx(s.name)), h('small', null, ok ? tx(s.text) : L('🔒 Im Labor erforschen', '🔒 Research in the lab')), ok ? h('em', null, `⛨ ${s.hp} · ♨ ${s.heatMax} · ✦ ${s.gold}`) : ''));
+        h('span', { class: 'ic ship', html: shipHtml(s.hull, s.hue) }), h('div', null, h('b', null, tx(s.name)), h('small', null, ok ? tx(s.text) : L('▣ Im Labor erforschen', '▣ Research in the lab')), ok ? h('em', null, `⛨ ${s.hp} · ♨ ${s.heatMax} · ✦ ${s.gold}`) : ''));
     })));
   }
   private pickDeck() {
@@ -184,7 +184,7 @@ export class Game {
         h('button', { class: 'sf-pickrow' + (this.deck === '' ? ' on' : ''), onclick: () => { this.deck = ''; close(); this.hub('play'); } }, h('span', { class: 'ic' }, '✦'), h('div', null, h('b', null, L('Schiffs-Standard', 'Ship default')), h('small', null, L('Ausgewogen, für den Anfang', 'Balanced, good to start')))),
         ...CONSTELLATIONS.map(c => { const ok = packUnlocked(c.unlock); return h('button', { class: 'sf-pickrow' + (this.deck === c.id ? ' on' : '') + (ok ? '' : ' locked'), style: { '--cc': c.color } as any,
           onclick: () => { if (!ok) { toast(L('Im Forschungslabor freischalten.', 'Unlock in the research lab.')); return; } this.deck = c.id; close(); this.hub('play'); } },
-          h('span', { class: 'ic', style: { background: c.color } }, ok ? c.icon : '🔒'), h('div', null, h('b', null, tx(c.name)), h('small', null, ok ? tx(c.idea) : L('Im Labor erforschen', 'Research in the lab')), ok ? h('em', null, `I: ${tx(c.tiers[0])}`) : '')); })),
+          h('span', { class: 'ic', style: { background: c.color } }, ok ? c.icon : '▣'), h('div', null, h('b', null, tx(c.name)), h('small', null, ok ? tx(c.idea) : L('Im Labor erforschen', 'Research in the lab')), ok ? h('em', null, `I: ${tx(c.tiers[0])}`) : '')); })),
       h('button', { class: 'btn block', onclick: () => { close(); showConsts(newRun(this.ship, 'X', 0, { deck: this.deck })); } }, L('Alle Konstellationen im Detail', 'All constellations in detail')));
   }
   private pickDanger() {
@@ -309,6 +309,9 @@ export class Game {
   map(intro = false) {
     const run = this.run!;
     const sec = SECTOR[sectorOf(run)];
+    // Motive des Decks und der Sektor-Gegner im Hintergrund in Pixelbilder umrechnen (flüssige Kämpfe)
+    const foeIds = [...new Set([...sec.easy, ...sec.hard, ...sec.elite].flat().concat(sec.bosses))];
+    prewarmArt([...new Set(run.reels.flat().map(x => x.id))].map(id => SYM[id]), foeIds.map(id => ENEMY[id]?.look).filter(Boolean));
     this.clear('map', sec.bg, sec.theme);
     const reach = new Set(reachable(run));
     const rows = Math.max(...run.map.map(n => n.row)) + 1;

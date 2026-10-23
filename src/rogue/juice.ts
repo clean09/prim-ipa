@@ -16,12 +16,12 @@ export class Particles {
   timeScale = 1;
   constructor(readonly canvas: HTMLCanvasElement) {
     this.g = canvas.getContext('2d')!;
-    const fit = () => { const d = Math.min(sfs().gfx === 'high' ? 2 : 1.5, devicePixelRatio || 1); canvas.width = canvas.clientWidth * d; canvas.height = canvas.clientHeight * d; this.g.setTransform(d, 0, 0, d, 0, 0); };
+    const fit = () => { const d = Math.min(sfs().gfx === 'high' ? 2 : 1, devicePixelRatio || 1); canvas.width = canvas.clientWidth * d; canvas.height = canvas.clientHeight * d; this.g.setTransform(d, 0, 0, d, 0, 0); };
     fit(); new ResizeObserver(fit).observe(canvas);
   }
   /** Explosion an (x, y) in Bildschirmpunkten relativ zur Leinwand. */
   burst(x: number, y: number, count: number, hex: number, speed = 220, size = 3) {
-    if (sfs().gfx === 'low') count = Math.ceil(count / 2);
+    if (sfs().gfx !== 'high') count = Math.ceil(count * (sfs().gfx === 'low' ? 0.35 : 0.55));
     if (reducedMotion()) count = Math.ceil(count / 4);
     for (let k = 0; k < count; k++) {
       const i = this.n < MAX ? this.n++ : Math.floor(Math.random() * MAX);

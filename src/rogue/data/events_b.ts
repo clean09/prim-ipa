@@ -5,7 +5,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'gravitationsbrunnen-0',
     act: 0,
-    icon: '🌀',
+    icon: '◎',
     title: ['Gravitationsbrunnen', 'Gravity Well'],
     text: ['Ein instabiler Gravitationsbruch zieht an deiner Hülle. Die Struktur des Raums beginnt zu flimmern.', 'An unstable gravity well pulls at your hull. The fabric of space begins to shimmer.'],
     options: [
@@ -26,7 +26,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'zeitschleife-0',
     act: 0,
-    icon: '⏳',
+    icon: '⧗',
     title: ['Zeitschleife', 'Time Loop'],
     text: ['Die Zeit scheint hier zu stocken. Du siehst Fragmente deiner eigenen Reise in der Ferne.', 'Time seems to stall here. You see fragments of your own journey in the distance.'],
     options: [
@@ -47,7 +47,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'spiegelflotte-0',
     act: 0,
-    icon: '🛸',
+    icon: '⊙',
     title: ['Spiegelflotte', 'Mirror Fleet'],
     text: ['Geisterhafte Schiffe gleiten lautlos vorbei. Sie spiegeln deine eigene Signatur wider.', 'Ghostly ships glide silently past. They mirror your own signature.'],
     options: [
@@ -68,7 +68,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'sternenfriedhof-0',
     act: 0,
-    icon: '⚰️',
+    icon: '⚰',
     title: ['Sternenfriedhof', 'Star Graveyard'],
     text: ['Überreste toter Zivilisationen treiben im Vakuum. Ein Ort der stillen Melancholie.', 'Remnants of dead civilizations drift in the vacuum. A place of silent melancholy.'],
     options: [
@@ -89,7 +89,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'waisen-protostern-0',
     act: 0,
-    icon: '🐣',
+    icon: '◒',
     title: ['Waisen-Protostern', 'Orphan Protostar'],
     text: ['Ein kleiner, instabiler Stern sucht nach einem Heimathafen. Er flüstert in deiner Sprache.', 'A small, unstable star seeks a home. It whispers in your language.'],
     options: [
@@ -110,7 +110,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'schwarzer-markt-3',
     act: 3,
-    icon: '⚖️',
+    icon: '⚖',
     title: ['Schwarzer Markt', 'Black Market'],
     text: ['Am Ereignishorizont tummeln sich Händler des Verbotenen. Ozzo scheint hier einen Stand zu haben.', 'At the event horizon, traders of the forbidden gather. Ozzo seems to have a stall here.'],
     options: [
@@ -132,7 +132,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'verlorene-lichtsammler-3',
     act: 3,
-    icon: '🔦',
+    icon: '☼',
     title: ['Verlorene Lichtsammler', 'Lost Light-Gatherers'],
     text: ['Eine Gruppe von Motten ist in einem Nebelstrudel gefangen. Sie brauchen Hilfe.', 'A group of moths is trapped in a nebula swirl. They need help.'],
     options: [
@@ -153,7 +153,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'pulsar-orakel-3',
     act: 3,
-    icon: '🔮',
+    icon: '◍',
     title: ['Pulsar-Orakel', 'Pulsar Oracle'],
     text: ['Ein Pulsar sendet rhythmische Signale aus, die wie Prophezeiungen klingen.', 'A pulsar emits rhythmic signals that sound like prophecies.'],
     options: [
@@ -174,7 +174,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'wurmloch-zoll-3',
     act: 3,
-    icon: '🛂',
+    icon: '▧',
     title: ['Wurmloch-Zoll', 'Wormhole Toll'],
     text: ['Ein interdimensionaler Wärter verlangt Tribut für den sicheren Durchgang.', 'An interdimensional warden demands tribute for safe passage.'],
     options: [
@@ -196,7 +196,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'kassiks-falle-3',
     act: 3,
-    icon: '🕸️',
+    icon: '⌘',
     title: ['Kassiks Falle', 'Kassik\'s Trap'],
     text: ['Ein Netz aus Fallen und Sensoren blockiert den Weg. Kassik-Tor hat hier ihre Spuren hinterlassen.', 'A web of traps and sensors blocks the way. Kassik-Tor left her traces here.'],
     options: [
@@ -217,7 +217,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'ozzos-bankrott-3',
     act: 3,
-    icon: '📉',
+    icon: '↘',
     title: ['Ozzos Bankrott', 'Ozzo\'s Bankruptcy'],
     text: ['Ozzo wirkt nervös. Er hat einen Deal verloren und sucht nach einem schnellen Ausweg.', 'Ozzo looks nervous. He lost a deal and is looking for a quick way out.'],
     options: [
@@ -239,7 +239,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'sola-nn-hinterzimmerspiel-3',
     act: 3,
-    icon: '🃏',
+    icon: '♠',
     title: ['Sola-Nns Hinterzimmerspiel', 'Sola-Nn\'s Backroom Game'],
     text: ['Sola-Nn lädt dich zu einem privaten Spiel ein. Die Einsätze sind... ungewöhnlich.', 'Sola-Nn invites you to a private game. The stakes are... unusual.'],
     options: [
@@ -261,7 +261,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'brakks-prototyp-3',
     act: 3,
-    icon: '🛠️',
+    icon: '⚒',
     title: ['Brakks Prototyp', 'Brakk\'s Prototype'],
     text: ['Brakk hat ein neues Modul entwickelt, aber es ist noch instabil. Er braucht deine Hilfe.', 'Brakk has developed a new module, but it is still unstable. He needs your help.'],
     options: [
@@ -282,7 +282,7 @@ export const EVENTS_B: EventDef[] = [
   {
     id: 'kometenhochzeit-3',
     act: 3,
-    icon: '💍',
+    icon: '○',
     title: ['Kometenhochzeit', 'Comet Wedding'],
     text: ['Zwei Kometen kollidieren in einer rituellen Vereinigung. Die Energie ist fast greifbar.', 'Two comets collide in a ritual union. The energy is almost tangible.'],
     options: [

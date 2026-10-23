@@ -1,7 +1,7 @@
 // Animierter Hintergrund je Design (wie Ui/HomeBackdrop.cs am Desktop): Nebel = Sterne + Nebelschwaden,
 // Studio = Punktraster, Observatorium = drehendes Astrolabium, Labor = Ulam-Spirale (Primzahlen leuchten),
 // Papier = Millimeterpapier. ~30 Bilder/s, hält an, solange eine Messung läuft oder Bewegung aus ist.
-import { busyChanged, busy } from '../core/nav';
+import { busyChanged, busy, fullscreen } from '../core/nav';
 import { accentColor, design, motionLevel, onThemeChange, reducedMotion } from '../core/theme';
 
 interface Star { x: number; y: number; z: number; tw: number; c: string }
@@ -106,13 +106,14 @@ export function startBackground() {
 
   const loop = (now: number) => {
     raf = 0;
-    if (busy.running || reducedMotion() || document.hidden) return;
+    if (busy.running || fullscreen.on || reducedMotion() || document.hidden) return;
     if (now - last >= (motionLevel() === 'calm' ? 66 : 33)) draw(now);
     raf = requestAnimationFrame(loop);
   };
   const kick = () => {
     if (raf) return;
     draw(performance.now());
+    if (fullscreen.on) return;
     if (!busy.running && !reducedMotion()) raf = requestAnimationFrame(loop);
   };
 

@@ -16,12 +16,12 @@ const WORLD: [LbKind, () => string, () => string][] = [
   ['prime', () => L('Primzahlen', 'Primes'), () => L('Punkte', 'points')],
   ['bh', () => L('Singularität', 'Singularity'), () => L('Punkte', 'points')],
   ['ai', () => L('KI (FP16)', 'AI (FP16)'), () => 'GFLOPS'],
-  ['profi', () => L('🧠 Mathe-Profi', '🧠 Math pro'), () => L('Stufe', 'stage')],
+  ['profi', () => L('∿ Mathe-Profi', '∿ Math pro'), () => L('Stufe', 'stage')],
   ['pidigits', () => L('π-Stellen', 'π digits'), () => L('Stellen', 'digits')],
-  ['game', () => L('🎯 Jagd', '🎯 Hunt'), () => L('Punkte', 'points')],
-  ['blitz', () => '⚡ Blitz', () => L('Punkte', 'points')],
-  ['split', () => L('🪐 Planetenspalter', '🪐 Planet Splitter'), () => L('Punkte', 'points')],
-  ['daily', () => L('📅 Heute', '📅 Today'), () => L('Punkte', 'points')],
+  ['game', () => L('⌖ Jagd', '⌖ Hunt'), () => L('Punkte', 'points')],
+  ['blitz', () => '↯ Blitz', () => L('Punkte', 'points')],
+  ['split', () => L('♄ Planetenspalter', '♄ Planet Splitter'), () => L('Punkte', 'points')],
+  ['daily', () => L('☷ Heute', '☷ Today'), () => L('Punkte', 'points')],
 ];
 let lastKind: ScoreEntry['kind'] = 'device';
 let lastWorld: LbKind = 'device';
@@ -78,7 +78,7 @@ function renderMine(body: HTMLElement) {
     rows.forEach((e, i) => {
       const [v, unit] = mainValue(e);
       list.append(h('div', { class: 'score-row' },
-        h('div', { class: 'rank' }, i === 0 ? '🏆' : String(i + 1)),
+        h('div', { class: 'rank' }, i === 0 ? '♛' : String(i + 1)),
         h('div', { class: 'main' }, h('b', null, e.detail || e.model || ''), h('span', null, `${dateStr(e.time)}${e.model ? ' · ' + e.model : ''}`)),
         h('div', { class: 'val' }, v, h('small', null, unit))));
     });
@@ -145,7 +145,7 @@ async function renderWorld(body: HTMLElement) {
       const own = d.model === model;
       const rk = kind === 'device' || kind === 'prime' || kind === 'bh' || kind === 'ai' ? rankFor(kind, d.avg) : null;
       list.append(h('div', { class: 'score-row', style: own ? { background: 'color-mix(in srgb, var(--accent) 14%, transparent)', borderRadius: '12px', padding: '11px 8px' } : undefined },
-        h('div', { class: 'rank' }, i < 3 ? ['🥇', '🥈', '🥉'][i] : String(i + 1)),
+        h('div', { class: 'rank' }, i < 3 ? ['①', '②', '③'][i] : String(i + 1)),
         h('div', { class: 'main' }, h('b', null, d.model), h('span', null, `${d.soc} · ${d.n} ${d.n === 1 ? L('Gerät', 'device') : L('Geräte', 'devices')}`)),
         h('div', { class: 'val', style: rk ? { color: rk.color } : undefined }, N(d.avg), h('small', null, `Ø ${unit}`))));
     });
@@ -176,7 +176,7 @@ async function renderGameWorld(kind: LbKind, unit: string, mine: HTMLElement, li
     const row = (k: string, v: string) => h('div', { class: 'score-row' }, h('div', { class: 'main' }, h('b', null, k)), h('div', { class: 'val' }, v));
     if (!r.stats) list.append(h('div', { class: 'muted', style: { padding: '14px 4px' } }, L('Noch keine Ergebnisse – sei der Erste!', 'No results yet – be the first!')));
     else list.append(
-      row(L('🏆 Bester Spieler', '🏆 Best player'), `${N(r.stats.best)} ${unit}`),
+      row(L('♛ Bester Spieler', '♛ Best player'), `${N(r.stats.best)} ${unit}`),
       row(L('Durchschnitt', 'Average'), `${N(r.stats.avg)} ${unit}`),
       row(L('Teilnehmer', 'Players'), N(r.stats.n)),
       myBest ? row(L('Du', 'You'), `${N(myBest)} ${unit}`) : '');
